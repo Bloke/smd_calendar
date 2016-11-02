@@ -100,10 +100,23 @@ if (!defined('txpinterface'))
 //  * Expiry dates on extra+ allspanned dates in smd_article_event (and calendar?). They currently 'creep' a day for every day of a spanned event
 //  * Ranges in stepfields (http://forum.textpattern.com/viewtopic.php?pid=254395#p254395 and http://forum.textpattern.com/viewtopic.php?pid=255617#p255617)
 
-if( $date = gps('date') ) {
+if ($date = gps('date')) {
     $_GET['month'] = $date;
 }
-function smd_calendar($atts, $thing='') {
+
+if (class_exists('\Textpattern\Tag\Registry')) {
+    Txp::get('\Textpattern\Tag\Registry')
+        ->register('smd_calendar')
+        ->register('smd_cal_info')
+        ->register('smd_cal_now')
+        ->register('smd_cal_class')
+        ->register('smd_if_cal')
+        ->register('smd_article_event')
+        ->register('smd_event_info')
+        ->register('smd_event_duration');
+}
+
+function smd_calendar($atts, $thing = null) {
     global $pretext, $thisarticle, $variable, $prefs, $smd_cal_flag, $smd_date, $smd_calinfo, $smd_cal_ucls;
 
     extract(lAtts(array(
@@ -1703,7 +1716,7 @@ function smd_cal_class($atts) {
 }
 
 // <txp:article_custom /> replacement(ish) tag that understands how to handle recurring events
-function smd_article_event($atts, $thing=NULL) {
+function smd_article_event($atts, $thing = null) {
     global $prefs, $pretext, $thispage, $thisarticle, $smd_eventinfo, $smd_cal_flag, $smd_date;
 
     extract(lAtts(array(
