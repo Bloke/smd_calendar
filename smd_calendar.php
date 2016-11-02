@@ -17,7 +17,7 @@ $plugin['name'] = 'smd_calendar';
 // 1 = Plugin help is in raw HTML.  Not recommended.
 # $plugin['allow_html_help'] = 1;
 
-$plugin['version'] = '0.53';
+$plugin['version'] = '0.54';
 $plugin['author'] = 'Stef Dawson';
 $plugin['author_uri'] = 'http://stefdawson.com/';
 $plugin['description'] = 'Calendar / event / schedule system with events as Textpattern articles';
@@ -110,7 +110,7 @@ function smd_calendar($atts, $thing='') {
         'time'          => 'any',
         'size'          => 'large',
         'expired'       => '',
-        'category'      => '',
+        'category'      => null,
         'subcats'       => '',
         'section'       => '',
         'author'        => '',
@@ -199,9 +199,15 @@ function smd_calendar($atts, $thing='') {
     // Filters
     $fopts = array();
     $catSQL = $secSQL = $authSQL = $fpSQL = '';
-    if($category) {
-        $fopts['c'] = $category; // TODO: Can fopts take a list? Should it include subcats?
+    if($category !== null) {
+        $uncats = false;
         $allcats = do_list($category);
+        if (($pos = array_search('SMD_UNCAT', $allcats)) !== false) {
+            $uncats = true;
+            unset($allcats[$pos]);
+            $category = join(',', $allcats);
+        }
+        $fopts['c'] = $category; // TODO: Can fopts take a list? Should it include subcats?
         $subcats = (empty($subcats)) ? 0 : ((strtolower($subcats)=="all") ? 99999 : intval($subcats));
         if ($subcats) {
             $outcats = array();
@@ -216,7 +222,9 @@ function smd_calendar($atts, $thing='') {
             $allcats = $outcats;
         }
         $catSQL = doQuote(join("','", doSlash($allcats)));
-        $catSQL = " AND ( Category1 IN (".$catSQL.") OR Category2 IN (".$catSQL.") ) ";
+        $catSQL = ($uncats ? " AND (Category1 = '' AND Category2 = '')" : '') .
+            ($uncats && $allcats ? " OR " : ($allcats ? " AND " : '')) .
+            ($allcats ? "( Category1 IN (".$catSQL.") OR Category2 IN (".$catSQL.") ) " : '');
     }
     if($section) {
         $secs = do_list($section);
@@ -266,7 +274,7 @@ function smd_calendar($atts, $thing='') {
     $datefields = do_list($datefields);
 
     // Work out the first and last posts to determine the year range - probably a better way of doing this than 3 queries
-    $filt = $stati . (($category) ? $catSQL : '') . (($section) ? $secSQL : '') . (($author) ? $authSQL : '') . $fpSQL;
+    $filt = $stati . (($category !== null) ? $catSQL : '') . (($section) ? $secSQL : '') . (($author) ? $authSQL : '') . $fpSQL;
     $earliest = safe_field('unix_timestamp(Posted) AS uPosted', 'textpattern', $filt .' ORDER BY Posted ASC LIMIT 0, 1', $debug);
     $lp = safe_field('unix_timestamp(Posted) AS uPosted', 'textpattern', $filt .' ORDER BY Posted DESC LIMIT 0, 1', $debug);
     $lm = safe_field('unix_timestamp(LastMod) AS uLastMod', 'textpattern', $filt .' ORDER BY LastMod DESC LIMIT 0, 1', $debug);
@@ -391,7 +399,8 @@ function smd_calendar($atts, $thing='') {
         $real_end_year = ($real_end==0) ? 0 : date('Y', $real_end);
         $fake_diff = strtotime(date("Y-M-d", $real_end) . " 23:59:59");
         $diff = ($real_end==0) ? 0 : $fake_diff - $start;
-        $smd_cal_flag = $smd_cal_ucls = array();
+        $smd_cal_flag = array();
+        $smd_cal_ucls = array();
 
         $ev_month = date('m', $start);
         $ev_year = date('Y', $start);
@@ -446,7 +455,9 @@ function smd_calendar($atts, $thing='') {
                     break;
             }
         }
-        $ignore = $omit = $cflag = array();
+        $ignore = array();
+        $omit = array();
+        $cflag = array();
 
         if ($debug > 1 && $evclasses) {
             echo '++ EVENT CLASSES ++';
@@ -481,7 +492,9 @@ function smd_calendar($atts, $thing='') {
 
             $op = ($thing) ? parse($thing) : (($form) ? parse_form($form) : (($size=="small") ? smd_cal_minilink($row, $idx, $month, $year, $use_posted) : href($row['Title'], permlinkurl($row), ' title="'.$row['Title'].'"')) );
             $events[$idx][] = array('ev' => $op, 'evid' => $row['ID'], 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $start_date);
-            $smd_cal_flag = $cflag = $smd_cal_ucls = array();
+            $smd_cal_flag = array();
+            $cflag = array();
+            $smd_cal_ucls = array();
             $use_posted = '';
         }
 
@@ -592,7 +605,9 @@ function smd_calendar($atts, $thing='') {
                             if (isset($events[$idx]) && $events[$idx] == NULL || !in_array($op, $used)) {
                                 $events[$idx][] = array('ev' => $op, 'evid' => $row['ID'], 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $start_date);
                             }
-                            $smd_cal_flag = $cflag = $smd_cal_ucls = array();
+                            $smd_cal_flag = array();
+                            $cflag = array();
+                            $smd_cal_ucls = array();
                             $use_posted = '';
                         }
                         $ts_loop++;
@@ -634,7 +649,9 @@ function smd_calendar($atts, $thing='') {
                     }
                 }
                 $events[$idx][] = array('ev' => $op, 'evid' => $row['ID'], 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $start_date);
-                $smd_cal_flag = $cflag = $smd_cal_ucls = array();
+                $smd_cal_flag = array();
+                $cflag = array();
+                $smd_cal_ucls = array();
                 $use_posted = '';
             }
         }
@@ -703,7 +720,9 @@ function smd_calendar($atts, $thing='') {
                                 $smd_date['iy'] = strftime(smd_cal_reformat_win('%G', $tm), $tm);
                                 $op = ($spex && $spanform) ? parse_form($spanform) : (($thing) ? parse($thing) : (($form) ? parse_form($form) : (($size=="small") ? smd_cal_minilink($row, $idx, $month, $year, $use_posted) : href((($spex && $jdx>1) ? '&rarr;' : $row['Title']), permlinkurl($row), ' title="'.$row['Title'].'"')) ));
                                 $events[$idx][] = array('ev' => $op, 'evid' => $row['ID'], 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $dt);
-                                $smd_cal_flag = $cflag = $smd_cal_ucls = array();
+                                $smd_cal_flag = array();
+                                $cflag = array();
+                                $smd_cal_ucls = array();
                                 $use_posted = '';
                             }
                         }
@@ -777,7 +796,9 @@ class SMD_Calendar extends SMD_Raw_Calendar {
     function dspDayCell($theday) {
         global $smd_cal_flag, $smd_calinfo, $smd_cal_ucls, $smd_date, $permlink_mode;
 
-        $smd_cal_flag = $smd_cal_ucls = $tdclass = array();
+        $smd_cal_flag = array();
+        $smd_cal_ucls = array();
+        $tdclass = array();
         $hasarticle = isset($this->events[$theday]);
         $now = time() + tz_offset();
 
@@ -805,7 +826,9 @@ class SMD_Calendar extends SMD_Raw_Calendar {
             $runningclass[] = $this->cls_pfx.'today';
         }
 
-        $out = $flags = $evid = array();
+        $out = array();
+        $flags = array();
+        $evid = array();
         $fout = array('standard'=>array(),'recur'=>array(),'recurfirst'=>array(),'multifirst'=>array(),'multi'=>array(),'multiprev'=>array(),'multilast'=>array(),'cancel'=>array(),'extra'=>array());
         if (empty($this->cellform) && $this->size == 'large') {
             $out[] = hed($theday,4);
@@ -1688,7 +1711,7 @@ function smd_article_event($atts, $thing=NULL) {
         'type'        => 'standard,recur,multi',
         'expired'     => '',
         'id'          => '',
-        'category'    => '',
+        'category'    => null,
         'section'     => '',
         'author'      => '',
         'realname'    => '',
@@ -1719,10 +1742,20 @@ function smd_article_event($atts, $thing=NULL) {
     ), $atts));
 
     // Phase 1 filters
-    $filtSQL = $subSQL = array();
-    if($category) {
+    $filtSQL = array();
+    $subSQL = array();
+    if ($category !== null) {
+        $uncats = false;
+        $allcats = do_list($category);
+        if (($pos = array_search('SMD_UNCAT', $allcats)) !== false) {
+            $uncats = true;
+            unset($allcats[$pos]);
+            $category = join(',', $allcats);
+        }
         $tmp = doQuote(join("','", doSlash(do_list($category))));
-        $filtSQL[] = '( Category1 IN ('.$tmp.') OR Category2 IN ('.$tmp.') )';
+        $filtSQL[] = ($uncats ? "(Category1 = '' AND Category2 = '')" : '') .
+            ($uncats && $allcats ? " OR " : '') .
+            ($allcats ? '( Category1 IN ('.$tmp.') OR Category2 IN ('.$tmp.') )' : '');
     }
     if($section) {
         $filtSQL[] = 'Section IN ('.doQuote(join("','", doSlash(do_list($section)))).')';
@@ -1819,7 +1852,8 @@ function smd_article_event($atts, $thing=NULL) {
         echo "++ RECORD SET ++";
         dmp($evlist);
     }
-    $all_evs = $ev_tally = array();
+    $all_evs = array();
+    $ev_tally = array();
     $now = time() + tz_offset();
 
     $eventlimit = do_list($eventlimit);
@@ -2099,7 +2133,9 @@ function smd_article_event($atts, $thing=NULL) {
     article_push();
     $lastposted = 0;
     foreach ($all_evs as $idx => $entry) {
-        $smd_cal_flag = $smd_date = $smd_eventinfo = array();
+        $smd_cal_flag = array();
+        $smd_date = array();
+        $smd_eventinfo = array();
 
         if ($idx >= $pgoffset && $ctr < $limit) {
             $row = $entry['ev'];
@@ -2199,7 +2235,7 @@ function smd_event_duration($atts) {
                     // and same month
                     $re1 = ($day_first) ? '/\%[bBmhgGyY]/' : '/\%[gGyY]/';
                     $re2 = ($day_first) ? '/\%[gGyY]/' : '/\%[bBmhgGyY]/';
-    
+
                     $s_format = trim(preg_replace($re1, '', $format));
                     $e_format = ($re2) ? trim(preg_replace($re2, '', $format)) : $format;
                 } else {
@@ -2213,7 +2249,7 @@ function smd_event_duration($atts) {
             }
             $s_format .= $separator;
         }
-    
+
         // Add the year back in the correct position
         $s_format = ($has_year) ? $s_format : (($year_first) ? $matches[0][$indexes['year']] . ' ' . $s_format : $s_format);
         $e_format = ($has_year) ? $e_format : (($year_first) ? $e_format : $e_format . ' ' . $matches[0][$indexes['year']]);
@@ -2230,7 +2266,7 @@ function smd_event_duration($atts) {
 // All other shortcut algorithms failed edge cases
 function smd_cal_iso_week($format='%V', $time = null) {
     if (!$time) $time = time();
-    
+
     $yr = strftime("%Y", $time);
     $leap = ( ( ($yr % 4 == 0) && ($yr % 100 != 0) ) || $yr % 400 == 0 );
     $leap_prev = ( ( (($yr-1) % 4 == 0) && (($yr-1) % 100 != 0) ) || ($yr-1) % 400 == 0 );
@@ -2392,33 +2428,7 @@ function smd_expand_daterange($range, $start='', $end='', $fmt='%s') {
 if (0) {
 ?>
 <!--
-# --- BEGIN PLUGIN CSS ---
-<style type="text/css">
-#smd_help { line-height:1.5 ;}
-#smd_help code { font-weight:bold; font: 105%/130% "Courier New", courier, monospace; background-color: #f0e68c; color:#333; }
-#smd_help code.block { font-weight:normal; border:1px dotted #999; display:block; margin:10px 10px 20px; padding:10px; }
-#smd_help h1 { font: 20px Georgia, sans-serif; margin: 0; text-align: center; }
-#smd_help h2 { border-bottom: 1px solid black; padding:10px 0 0; font: 17px Georgia, sans-serif; }
-#smd_help h3 { font: bold 12px Arial, sans-serif; letter-spacing: 1px; margin: 10px 0 0; text-decoration:underline; }
-#smd_help h4 { font: bold 11px Arial, sans-serif; letter-spacing: 1px; margin: 10px 0 0; text-transform: uppercase; }
-#smd_help .atnm { font-weight:bold; }
-#smd_help .mand { background:#eee; border:1px dotted #999; }
-#smd_help table { width:90%; text-align:center; padding-bottom:1em; border-collapse:collapse; }
-#smd_help td, #smd_help th { border:1px solid #999; padding:.5em; }
-#smd_help ul { list-style-type:square; }
-#smd_help .important { color:red; }
-#smd_help li { margin:5px 20px 5px 30px; }
-#smd_help .break { margin-top:5px; }
-#smd_help dl dd { margin:2px 15px; }
-#smd_help dl dd:before { content: "\21d2\00a0"; }
-#smd_help dl dd dl { padding: 0 15px; }
-</style>
-# --- END PLUGIN CSS ---
--->
-<!--
 # --- BEGIN PLUGIN HELP ---
-notextile. <div id="smd_help">
-
 h1. smd_calendar
 
 Render a calendar with one or more articles as events on each day. Useful for gig guides, "what's on" or scheduling apps.
@@ -2437,15 +2447,11 @@ h2. Features
 * Pass each event to a form/container. Spanned and/or recurring events can be sent to a separate form. Cell format also customisable
 * "Conditional":#ifcal tests for flags and dates so you can build your own logic
 * Table-, row-, cell-, and event-level classes for indicating different scenarios
-* Tags to "display recurring events":#artev ; event/calendar "characteristics":#calinfo ; or the "current date/time":#calnow
-
-h2. Author / credits
-
-"Stef Dawson":http://stefdawson.com/contact. Jointly funded by generous donators: mrdale, woof, jakob, renobird and joebaich. Originally based on mdp_calendar. All props to the original author, and of course the class upon which the calendar is based.
+* Tags to "display recurring events":#artev; event/calendar "characteristics":#calinfo; or the "current date/time":#calnow
 
 h2. Installation / Uninstallation
 
-p(important). Requires Textpattern 4.4.1+
+p(warning). Requires Textpattern 4.4.1+
 
 Download the plugin from either "textpattern.org":http://textpattern.org/plugins/1052/smd_calendar, or the "software page":http://stefdawson.com/sw, paste the code into the TXP Admin->Plugins pane, install and enable the plugin. Create any needed "custom fields":#fldatts. Visit the "forum thread":http://forum.textpattern.com/viewtopic.php?id=29375 for more info or to report on the success or otherwise of the plugin.
 
@@ -2455,10 +2461,10 @@ h2. Naming convention
 
 The core of the plugin is the smd_calendar tag, which renders a standard calendar. Each cell contains one or more events that occur on that day. Before diving into the tags here are the basics:
 
-* %(atnm)calid% : you may put more than one calendar on a page: each can be uniquely referenced with a calendar ID so they may be controlled independently
-* %(atnm)event% : an article. Any article written in the given section(s) will appear on the calendar as long as its expiry hasn't been met. More than one event may appear in each cell
-* %(atnm)event flag% : events can either be "standard":#events, they can "recur":#recur, they can span "multiple":#multi days, dates can be "unscheduled or omitted":#cancel from the calendar, or "extra":#extra dates can be added
-* %(atnm)cell flag% : a series of flags are used to label each cell according to what it contains. Cells can either be empty (i.e. no date: the filler cells at the start/end of the month), they can be a regular day (no flag), they can contain an event, or may be a "holiday":#holidays
+* *calid% : you may put more than one calendar on a page: each can be uniquely referenced with a calendar ID so they may be controlled independently
+* *event% : an article. Any article written in the given section(s) will appear on the calendar as long as its expiry hasn't been met. More than one event may appear in each cell
+* *event flag% : events can either be "standard":#events, they can "recur":#recur, they can span "multiple":#multi days, dates can be "unscheduled or omitted":#cancel from the calendar, or "extra":#extra dates can be added
+* *cell flag% : a series of flags are used to label each cell according to what it contains. Cells can either be empty (i.e. no date: the filler cells at the start/end of the month), they can be a regular day (no flag), they can contain an event, or may be a "holiday":#holidays
 
 Flags provide information _about_ the cell / event  -- and can be tested with the conditional tag -- while the corresponding class names are just there for your CSS use.
 
@@ -2548,7 +2554,7 @@ Public holidays need not be a nuisance to your events. Give the plugin a holiday
 
 The list of dates you specify can be entered directly in a string in the @holidays@ attribute or in a @<txp:variable />@:
 
-bc(block). <txp:variable name="nat_hols"
+bc. <txp:variable name="nat_hols"
      value="Dec 25, 26 Dec, 31/Dec, Jan-1,
         May 4 2009, 2009-08-31" />
 <txp:smd_calendar holidays="txpvar:nat_hols" />
@@ -2559,22 +2565,22 @@ Once your dates are defined you can control which events are allowed to fall on 
 
 Holiday cells are given the flag @hols@, and any event that is not specifically permitted by the @holidayflags@ is automatically assigned a @cancel@ flag if it falls on one of the days. Omitted dates will, however, cause the @cancel@ flag to be removed.
 
-h2(#smdcal). Tag: @<txp:smd_calendar />@
+h2(#smdcal). Tag: @<txp:smd_calendar>@
 
 Put this tag wherever you want your calendar to appear. Use the following attributes to control its output. The default value is unset unless stated otherwise.
 
-h3(atts). Display attributes
+h3. Display attributes
 
-; %(atnm)size%
+; *size*
 : Calendar size. Options:
 :: large
 :: small
 : The small is more geared towards a minical, although functionally there "isn't much between them":#sizediff
 : Default: large
-; %(atnm)firstday%
+; *firstday*
 : First day of the week to show in the calendar. 0=Sunday, 1=Monday ... 6=Saturday
 : Default: 0
-; %(atnm)dayformat%
+; *dayformat*
 : Way in which day names are rendered. Options:
 :: ABBR shows abbreviated day names; Mon, Tue, Wed, etc
 :: FULL uses full names
@@ -2582,7 +2588,7 @@ h3(atts). Display attributes
 :: A comma-separated list of custom day names surrounded by @{}@ brackets
 : Example, for two-letter German weekdays: @dayformat="{So,Mo,Di,Mi,Do,Fr,Sa}"@. The first day in the list *must* represent Sunday or things will break
 : Default: ABBR
-; %(atnm)monthformat%
+; *monthformat*
 : Way in which the month names are rendered. Options:
 :: FULL shows full month names
 :: ABBR uses abbreviated names
@@ -2590,7 +2596,7 @@ h3(atts). Display attributes
 :: A comma-separated list of custom month names surrounded by @{}@ brackets
 : Example, for single-letter month names: @monthformat="{J,F,M,A,M,J,J,A,S,O,N,D}"@. The first month in the list *must* represent January or things will break
 : Default: FULL
-; %(atnm)select%
+; *select*
 : Use a select dropdown for rapid access to weeks, months or years instead of fixed names. Choose one or more of:
 :: week
 :: month
@@ -2598,10 +2604,10 @@ h3(atts). Display attributes
 : Note: week and month are mutually exclusive
 : You may also specify up to two extra arguments, separated by @:@ chars. These add text in front of and behind the week/month/year, respectively
 : Example: @select="week:WEEK#, year:<:>"@ displays a select list with entries like this: @WEEK#15 <2009>@
-; %(atnm)selectbtn%
+; *selectbtn*
 : Add a dedicated submit button to week/month/year select lists. Specify the text you wish to appear on the button. It will have the CSS class name @smd_cal_input@
 : Default: unset (i.e. auto-submit on select list change)
-; %(atnm)isoweeks%
+; *isoweeks*
 : Show ISO week numbers as a column at the start of the calendar. Any text in this attribute enables the feature, and becomes the heading of the ISO week column
 : You may change the default week number in each cell by adding a comma and some text; whatever you enter will be put in each ISO week cell. Use the following replacement codes in your markup to insert the relevant info:
 :: {week}
@@ -2610,133 +2616,133 @@ h3(atts). Display attributes
 :: {isoyear}
 : Example: @isoweeks="wk, #{week}"@ will put 'wk' at the top of the column and something like @#24@, @#25@, @#26@... beneath it. If the first item is omitted, there will be no column heading
 : Note that if this feature is enabled, @firstday@ will be forced to start on a Monday as governed by the ISO specification
-; %(atnm)navarrow%
+; *navarrow*
 : Comma-separated pair of items you want to appear as prev/next arrows in the calendar
 : Default: @&#60;, &#62;@
-; %(atnm)caption%
+; *caption*
 : Add a caption to the calendar
-; %(atnm)summary%
+; *summary*
 : Add a summary to the calendar
 
-h3(atts). Filter attributes
+h3. Filter attributes
 
-; %(atnm)time%
+; *time*
 : Which events to display. Options:
 :: any
 :: past
 :: future
 :: today
 : Default: any
-; %(atnm)expired%
+; *expired*
 : Hide or show expired events. Options:
 :: unset (use the TXP Preference 'Publish expired articles')
 :: 0 (hide)
 :: 1 (show)
-; %(atnm)status%
+; *status*
 : Events in this status list are published on the calendar. Options:
 :: live
 :: sticky
 : Default: live
-; %(atnm)category%
-: Filter events by this list of categories
-; %(atnm)subcats%
+; *category*
+: Filter events by this list of categories. Use @SMD_UNCAT@ for uncategorised events
+; *subcats*
 : Consider sub-categories. Choose a numeric nesting level to consider, or the word @all@
-; %(atnm)section%
+; *section*
 : Filter events by this list of sections
-; %(atnm)author%
+; *author*
 : Filter events by this list of author login names
-; %(atnm)realname%
+; *realname*
 : Filter events by this list of author Real Names (note: may add one extra query)
-; %(atnm)showall%
+; *showall*
 : If your calendar appears on the front page of your site and you have _not_ used the @section@ attribute, then:
 :: 0: only shows events from sections marked with @On front page@
 :: 1: shows all events from all sections
 : Default: 0
-; %(atnm)month%
+; *month*
 : Start the calendar on this month from 1 (Jan) to 12 (Dec). Normal calendar navigation overrides this value
 : If @static@ is used, this month becomes the only one you may view
 : If unset, and no @m=@ value appears on the URL line, the current month is used
-: %(atnm)week%
+: *week*
 : Start the calendar during the month containing this ISO week (from 1 to 53)
 : Ignored if @static@ or one of the calendar navigation controls is used
 : If a @w=@ value appears on the URL line, the given week overrides any month value
-; %(atnm)year%
+; *year*
 : Start the calendar at this 4-digit year. Normal calendar navigation overrides this value
 : If @static@ is used, this year becomes the only one you may view
 : If unset, and no @y=@ value appears on the URL line, the current year is used
-; %(atnm)static%
+; *static*
 : Force the calendar to be fixed to one month/year (i.e. no navigation). Month and year decided by attributes @month@ and @year@ or, if omitted, the current date will be used
 
-h3(atts). Form attributes
+h3. Form attributes
 
-; %(atnm)form%
+; *form*
 : Use the given TXP form to process each event
 : If the smd_calendar tag is used as a container it will be used in preference to the form
 : If neither are used, a default is used (Large: hyperlinked article title, Small: empty event)
-; %(atnm)spanform%
+; *spanform*
 : Display spanned events differently to standard events; they usually use the same @form@/container
 : If neither are specified, a right-arrow will be used to indicate continuation of the previous day's event
 : Note: the first day of a spanned set is _not_ passed to the @spanform@; only continuation cells are passed to it
-; %(atnm)recurform%
+; *recurform*
 : Display recurring events differently to standard events
 : Note: the first event of a recurring set is _not_ passed to @recurform@
-; %(atnm)cellform% (%(important)only on large calendars%)
+; *cellform* (%(warning)only on large calendars%)
 : Use if you wish to build each cell entirely from scratch
 : There are some "replacement variables":#cellform you can use to insert dynamic pieces of information in your cells
 : Note: you cannot use TXP article or plugin tags in the Form
-; %(atnm)headerform%
+; *headerform*
 : Use if you wish to build the header yourself
 : There are some "replacement variables":#hdrform you can use to insert dynamic pieces of information in your header
 
-h3(atts#fldatts). Field-based attributes (custom fields or other article fields)
+h3(#fldatts). Field-based attributes (custom fields or other article fields)
 
-; %(atnm)stepfield%
+; *stepfield*
 : ID of a field within which an event may be told to repeat
 : Note: it is the field's ID _not its name_, so for custom fields you must use @custom_1@ or @custom_2@ etc
 : Without this attribute, no "recurring events":#recur may be defined
-; %(atnm)omitfield%
+; *omitfield*
 : ID (not name) of a field that contains a list of dates on which this event is to be "omitted":#cancel
-; %(atnm)skipfield%
+; *skipfield*
 : ID (not name) of a field that contains a list of dates on which this event is "cancelled":#cancel
-; %(atnm)extrafield%:
+; *extrafield*
 : ID (not name) of a field from which a list of "additional event dates":#extra may be given; the same event details will be copied to the new day(s)
-; %(atnm)extrastrict%
+; *extrastrict*
 : Control visibility of extra dates on the calendar. Options:
 :: 0: @extrafield@ dates automatically appear on the calendar
 :: 1: restrict new dates from appearing after the event's expiry date
 : Default: 0
-; %(atnm)showskipped%
+; *showskipped*
 : Control visibility of cancelled events on the calendar. Options:
 :: 0 (hide)
 :: 1 (show)
 : Default: 0
-; %(atnm)showspanned%
+; *showspanned*
 : Control visibility of spanned events on the calendar. Options:
 :: 0 (hide)
 :: 1 (show)
 : Default: 1
-; %(atnm)datefields%
+; *datefields*
 : IDs (not names) of up to two fields from which posted and expiry date stamps may be read. Comma-separate the field names; the first will be used as the Posted date and the second as the Expiry
 : If either is omitted or mangled, the article's "real" posted/expiry date will be used instead
 : If the expiry date occurs before the start date, your datefields will be ignored and a warning will be issued
 
-h3(atts). Config attributes
+h3. Config attributes
 
-; %(atnm)holidays%
+; *holidays*
 : List of dates that are decreed as "holidays":#holidays
 : May be deferred to a @<txp:variable />@, in which case define your list in a named variable and use @holidays="txpvar:my_var_name"@ to read them into the plugin
-; %(atnm)holidayflags%
+; *holidayflags*
 : Permit certain event flags to be scheduled on holidays. List one or more of:
 :: standard
 :: recur
 :: multi
 : Default: @standard@
-; %(atnm)id%
+; *id*
 : HTML ID to apply to the table that holds the calendar. This becomes the value of the URL variable @calid@
 : Use this if you have more than one calendar on a page and wish to control them separately via the URL vars
-; %(atnm)navid%
+; *navid*
 : HTML ID to apply to the prev/next/month/year navigation form
-; %(atnm)yearwidth%
+; *yearwidth*
 : A comma-separated list that specifies how many years your calendar spans. Visitors will not be permitted to navigate (next/prev) the calendar outside this range. Options:
 :: 0: use the earliest (posted) event as the earliest year, and the latest (modified or posted, whichever is greater) event as the latest year
 :: any other single number expands the range equally in past & future directions
@@ -2744,15 +2750,15 @@ h3(atts). Config attributes
 :: adding @c@ to either value causes the current year to be used instead of the earliest or latest event
 : Example: @yearwidth="2,4c"@ subtracts 2 years from the earliest event and adds 4 whole years to today's date
 : Default: 0
-; %(atnm)remap%
+; *remap*
 : When dealing with multiple calendars on a page it is often beneficial to use different names for @w=@, @m=@ or @y=@ in the URL so you can navigate calendars individually. This attribute enables you to rename the w, m, & y variable to any name specified after a colon (:)
 : Example: @remap="w:wk, y:yr"@
-; %(atnm)linkposted% (%(important)only on small calendars%)
+; *linkposted* (%(warning)only on small calendars%)
 : Each cell that contains an event flag of the given type(s) will have its day number linked to the event's true start date instead of the cell's date. This allows you to always link to a valid article/event
 : Note that if more than one event occurs in the cell, the link will only be to the first event the plugin finds
 : Example: if you have a weekly event that starts on the 20th December 2008, setting @linkposted="recur"@ will cause the link to be @date=2008-12-20@ every week. Without linkposted, the dates would be 2008-12-20, 2008-12-27, 2009-01-03, and so on
 : Default: @recur, multi, multiprev, multilast@ (i.e. any recurring or spanned event)
-; %(atnm)maintain%
+; *maintain*
 : Keep track of this comma-separated list of variables in the URL when navigating the calendar using the next/prev or month/year select lists. If you wish to maintain state yourself or do something exotic, empty this attribute first to avoid weirdness. Options:
 :: calid
 :: section
@@ -2764,54 +2770,57 @@ h3(atts). Config attributes
 :: any other URL variable of your choosing
 : Example: use @maintain="section, article, calid"@ if you have an individual article page with a calendar in a sidebar, so the currently viewed article will remain in view when changing date
 : Default: calid
-; %(atnm)nameval%
+; *nameval*
 : Add your own name/value pairs to the calendar's URL.
 : Example: @nameval="tracker=mycal, keep=1"@ would add @?tracker=mycal&keep=1@ to the URL. Useful if you want to @maintain@ some values which you can't add to the URL on page load
+; *event_delim*
+: Delimiter between each event.
+: Default: comma
 
-h3(atts). Style attributes
+h3. Style attributes
 
-; %(atnm)classlevels%
+; *classlevels*
 : Each flagged event can be given a CSS class based on its flag name(s). Classes can be applied to events, cells, or both. You may also promote (i.e. copy) all event classes that occur in a day to the cell itself so you can style the cell based on the events it contains. Options:
 :: event
 :: cell
 :: cellplus (for copying unique event classes to the containing cell)
 : Note you should not use @cell@ and @cellplus@ together because the latter overrides the former
 : Default: cell, event
-; %(atnm)classprefixes%
+; *classprefixes*
 : Comma-separated list of up to two prefixes to apply to your class names. The first prefix is applied to cell-level classes (and flags) and the second prefix is applied to event classes (see @eventclasses@)
 : If you only specify one prefix, it will be used for both. If you use @classprefixes=""@ then no prefixes will be used at all
 : Default: smd_cal_, smd_cal_ev_
-; %(atnm)class%
+; *class*
 : Class name of the calendar table itself
 : Default: unset
-; %(atnm)rowclass%
+; *rowclass*
 : Class name of each table row
 : Default: unset
-; %(atnm)cellclass%
+; *cellclass*
 : Class name of each table cell
 : Default: unset
-; %(atnm)emptyclass%
+; *emptyclass*
 : Class name of any cells that don't contain a day number (i.e. the blank cells at the start & end of a month)
 : Default: empty
-; %(atnm)isoweekclass%
+; *isoweekclass*
 : Class name of each cell containing an ISO week
 : Default: week
-; %(atnm)navclass%
+; *navclass*
 : Class name of the prev/next month nav arrows. If a comma-separated list is used, the first item will be the name of the class of the previous month, the 2nd item of the next month. If a single value is used, both class names will be the same
 : Default: navprev, navnext
-; %(atnm)myclass%
+; *myclass*
 : Class name of both the month and year in the calendar header (either the @<span>@ or @<select>@ tags). If @mywraptag@ is used, the class is applied to the wraptag instead
 : Default: unset
-; %(atnm)eventclasses%
+; *eventclasses*
 : Comma-separated list of items to add as classes to each event. Each are prefixed with the event prefix
 : Example: @eventclasses="ID, AuthorID, custom_5"@ would add three classes to each event corresponding to the event's ID, its author (login) name and the contents of custom_5
 : If you use @cellplus@, these classes will be copied to the cell level. Some special names exist: @category@ adds both Category1 and Category2 (if set); @gcat@ will add the current 'global' category (if filtering by category); @author@ adds the author ID (if filtering by author); @section@ adds the current section
 : Default: category
-; %(atnm)eventwraptag%
-: (X)HTML tag, without brackets, to wrap each event with
+; *eventwraptag*
+: HTML tag, without brackets, to wrap each event with
 : Default: span
-; %(atnm)mywraptag%
-: (X)HTML tag, without brackets, to wrap around _both_ month + year dropdown select lists and submit button
+; *mywraptag*
+: HTML tag, without brackets, to wrap around _both_ month + year dropdown select lists and submit button
 : Default: unset
 
 h3(#cellform). Using a @cellform@ with replacement variables
@@ -2866,9 +2875,9 @@ h2(#ifcal). Tag: @<txp:smd_if_cal>@
 
 This conditional tag allows you -- inside your container/forms  -- to test certain conditions of the current event/cell. For enhanced conditional checking (perhaps in conjunction with "smd_cal_now":#calnow), consider the smd_if plugin. The default value is unset unless stated otherwise.
 
-h3(atts#attsifcal). Attributes
+h3(#attsifcal). Attributes
 
-; %(atnm)flag%
+; *flag*
 : The cell or event flag(s) you want to test, each separated by a comma. List one or more of:
 :: event
 :: standard
@@ -2884,19 +2893,19 @@ h3(atts#attsifcal). Attributes
 :: hols
 :: today
 :: SMD_ANY (will trigger if the cell or event contains any of the above)
-; %(atnm)calid%
+; *calid*
 : The calendar ID you wish to check for a match
-; %(atnm)year%
+; *year*
 : The year the current cell falls in
-; %(atnm)isoyear%
+; *isoyear*
 : The ISO year the current cell falls in
-; %(atnm)month%
+; *month*
 : The month number (1-12) that the current cell falls in
-; %(atnm)week%
+; *week*
 : The ISO week number that the current cell falls in
-; %(atnm)day%
+; *day*
 : The day number the current cell falls in
-; %(atnm)logic%
+; *logic*
 : Method of combining the nominated tests. Options:
 :: or: tag will trigger if at least one of the tests is true
 :: and: tag will only trigger if all the tests are true
@@ -2912,13 +2921,13 @@ Rudimentary comparators can be applied to the @(iso)year@, @month@, @week@ and @
 * @<=@ tests if attribute is less than or equal to the given value
 * @!@ tests if attribute is _not_ the given value (e.g. @day="!15"@)
 
-h2(#calinfo). Tag: @<txp:smd_cal_info />@
+h2(#calinfo). Tag: @<txp:smd_cal_info>@
 
 Inside your smd_calendar container/forms, use this tag to output certain information about the current event.
 
-h3(atts #attscalinfo). Attributes
+h3(#attscalinfo). Attributes
 
-; %(atnm)type%
+; *type*
 : Comma-separated list of types of information you want to display. Options:
 :: flag
 :: calid
@@ -2935,142 +2944,142 @@ h3(atts #attscalinfo). Attributes
 : If using the @html@ attribute, you may optionally specify the name you want the variable to appear as in the URL string. The variables all take on sensible defaults (e.g. 'section' becomes @?s=<section name>@, 'category1' becomes @?c=<category1 name>@, etc).
 : Example: @<txp:smd_cal_info type="catgeory:the_cat" html="1" />@ means you would see @?the_cat=<category1 name>@ in the URL
 : Default: flag
-; %(atnm)join%
+; *join*
 : The characters you want to use to separate each item you asked for. Note it is the characters _between_ each item so the very first entry will *not* have the @join@ in front of it (see @join_prefix@)
 : Default: a space
-; %(atnm)join_prefix%
+; *join_prefix*
 : The string you want to put in front of the first item in the returned list. If you do not specify this attribute it tries to be clever:
 :: If using @type="flag"@ the join_prefix is set to the same as @join@. Thus with @join=" cal_"@ you might get @ cal_multi cal_today cal_hols@
 :: If using @html="1"@ the join_prefix is set to a question mark, thus: @type="month,year,category" html="1"@ might render @?m=12&y=2008&c=gigs@, which can be put straight on the end of an anchor
 : Default: @SMD_AUTO@
-; %(atnm)html%
+; *html*
 : Control in which format the information is returned. Options:
 :: 0: return items verbatim
 :: 1: return items as a URL parameter string. This is useful if you are building your own content inside each cell via a @form@ and wish to maintain the current search environment. If you allow people to filter events by category or author you can use this to return the 'current' state of certain variables so you can pass them to the next page and maintain state
 : Note: Setting this attribute to 1 overrides the @join@ attribute and sets it to an ampersand
 : Default: 0
-; %(atnm)escape%
+; *escape*
 : Escape HTML entities such as @<@, @>@ and @&@ for page validation purposes. Use @escape=""@ to turn this off
 : Default: @html@
 
-h2(#calclass). Tag: @<txp:smd_cal_class />@
+h2(#calclass). Tag: @<txp:smd_cal_class>@
 
 Inside your smd_calendat container/forms, use this tag to add a list of classes to the current cell/event. Very useful if building cells yourself because inside a "conditional":#ifcal tag you could add particular class names based on some value in a cell.
 
-h3(atts #attscalclass). Attributes
+h3(#attscalclass). Attributes
 
-; %(atnm)name%
+; *name*
 : Comma-separated list of classnames to add to the current cell/event. These are *not* subject to any @classprefixes@ so will always appear exactly as you write them
 : Default: unset
 
-h2(#calnow). Tag: @<txp:smd_cal_now />@
+h2(#calnow). Tag: @<txp:smd_cal_now>@
 
 Return the current date/time, formatted however you please. Useful for extracting parts of the current system timestamp to compare things via other conditional plugins or the @<txp:smd_if_cal>@ tag.
 
-h3(atts #attscalnow). Attributes
+h3(#attscalnow). Attributes
 
-; %(atnm)format%
+; *format*
 : The way you want the date/time represented. Use any valid "strftime()":http://uk2.php.net/strftime string. Has full Windows support, even for those values where strftime() indicates otherwise
 : Default: the date format set in Basic Preferences.
-; %(atnm)now%
+; *now*
 : If you don't want the time to be 'now' you can state what time 'now' is! Use any standard date/time format
 : You may also use the codes @?day@, @?month@ or @?year@ in your time string which will do one of two things:
 :: replace the codes with the URL parameters @d=@, @m=@ or @y=@, if they are being used
 :: use the current day, month or year (i.e. the parts of today's date)
 : Default: now! (the time at which you call the tag)
-; %(atnm)offset%
+; *offset*
 : An offset into the future that you wish to apply to @now@
 : Example: @2 months@. See "Example 6":#eg6 for a practical application of this attribute
-; %(atnm)gmt%
+; *gmt*
 : Return either:
 :: 0: local time according to the time zone set in Basic Prefs
 :: 1: GMT time
 : Default: 0
-; %(atnm)lang%
+; *lang*
 : An ISO language code that formats time strings suitable for the specified language (or locale) as defined by "ISO 639":http://en.wikipedia.org/wiki/ISO_639
 : Default: unset (i.e. use the value as stated in TXP prefs)
 
-h2(#artev). Tag: @<txp:smd_article_event />@
+h2(#artev). Tag: @<txp:smd_article_event>@
 
 When you create recurring events, they really only exist once as a single article; the repetition is a trick. Thus the built-in article tags only show the single, real articles.
 
-This tag -- similar in function to @<txp:article_custom />@ -- allows you to list recurring articles as if they were 'real' articles in the database. %(important)They don't become real articles, they are just listed as such%.
+This tag -- similar in function to @<txp:article_custom />@ -- allows you to list recurring articles as if they were 'real' articles in the database. %(warning)They don't become real articles, they are just listed as such%.
 
 Inside the tag's @form@ or container you can use all existing article tags to display any information you like about each 'virtual' article. The default value is unset unless stated otherwise.
 
 h3. Identical attributes to "smd_calendar":#smdcal:
 
-; %(atnm)stepfield%
-; %(atnm)skipfield%
-; %(atnm)omitfield%
-; %(atnm)extrafield%
-; %(atnm)datefields%
-; %(atnm)section%
-; %(atnm)category%
-; %(atnm)author%
-; %(atnm)realname%
-; %(atnm)status%
-; %(atnm)time%
-; %(atnm)expired%
+; *stepfield*
+; *skipfield*
+; *omitfield*
+; *extrafield*
+; *datefields*
+; *section*
+; *category*
+; *author*
+; *realname*
+; *status*
+; *time*
+; *expired*
 
 h3. Other attributes
 
-; %(atnm)id%
+; *id*
 : Restrict events to this list of article IDs
-; %(atnm)custom%
+; *custom*
 : Specify your own comma-separated list of custom field clauses to the query. Separate each field from its (optional) operator and clause with a colon (alterable via @param_delim@).
 : Example: @custom="custom_3:like:Lion%, custom_6:Chessington"@ would add @AND custom_3 like 'Lion%' AND custom_6='Chessington'@ to the database query.
-; %(atnm)param_delim%
+; *param_delim*
 : Alter the separator character(s) between field-clause items in the @custom@ attribute.
 : Default: colon (:)
-; %(atnm)type%
+; *type*
 : Comma-separated list of event types to display. Options:
 :: standard
 :: recur
 :: multi
 : Default: standard, recur, multi
-; %(atnm)allspanned%
+; *allspanned*
 : Control display of spanned events:
 : 0: any event that has a start date in the past will be omitted from the list
 : 1: display remaining days from spanned events that began in the past
 : Example: use @allspanned="1"@ if you are listing remaining performance dates from a Broadway show's schedule that started some months ago.
 : Default: 0
-; %(atnm)month%
+; *month*
 : Only show events that occur in the given YYYY-mm
-; %(atnm)from%
+; *from*
 : Only show events with Posted dated beginning after this start date. Can be any valid date format
-; %(atnm)to%
+; *to*
 : Only show events with Posted dates up to this end date. Can be any valid date format
-; %(atnm)sort%
+; *sort*
 : Order the events by this column (case-sensitive) and sort direction (asc or desc)
 : Default: Posted asc
-; %(atnm)form%
+; *form*
 : Pass each matching event to the given TXP form. Note that using a container overrides this attribute, and if you specify neither a form nor container, you will see a list of article Posted dates
-; %(atnm)paging%
+; *paging*
 : Unlike article_custom, events from the smd_article_event tag may be paged using @<txp:older />@ and @<txp:newer />@. But if you wish to show an event list on the same page as a standard article list, the older/newer tags will navigate both lists simultaneously. Under this circumstance you may need to turn paging off (0). Options:
 :: 0 (off)
 :: 1 (on)
 : Default: 1
-; %(atnm)offset%
+; *offset*
 : Begin displaying events from this numeric position, instead of from the start of the list of events
 : Default: 0
-; %(atnm)limit%
+; *limit*
 : Inly show this many events maximum *per page*, i.e. the number of events to display, whether they come from one 'real' article or many
 : Default: 10
-; %(atnm)eventlimit%
+; *eventlimit*
 : Only show this many events maximum *per event*
 : Example: if you have a weekly repeated event that lasts for four months and you set @eventlimit="6"@ you will only see a maximum of 6 events from every article containing repetition. The range (start and end date) is determined by other plugin attributes
 : Default: 10
-; %(atnm)pageby%
+; *pageby*
 : Esoteric paging feature, identical to @<txp:article />@
 : Default: same as @limit@
-; %(atnm)pgonly%
+; *pgonly*
 : Set to 1 to perform the paging action without displaying anything. Probably useless
-; %(atnm)wraptag%
-: The (X)HTML tag, without brackets, to wrap the list in
-; %(atnm)break%
-: The (X)HTML tag to separate each item with
-; %(atnm)class%
+; *wraptag*
+: The HTML tag, without brackets, to wrap the list in
+; *break*
+: The HTML tag to separate each item with
+; *class*
 : The CSS class to apply to the @wraptag@
 
 h3. The smd_article_event tag process
@@ -3081,7 +3090,7 @@ It is worth noting that this tag executes in 3-phases:
 # Time-filter: any "time-based" attributes are then applied to the above list. At this point, any @extrafield@, @stepfield@, @omitfield@, or @skipfield@ are calculated to find repeated dates (up to as many as @eventlimit@ allows or the calculation exceeds the event's expiry time). The attributes @time@, @month@, @from@, and @to@ are used to refine the filtration here
 # Output: whatever the previous phases have left behind is subject to any @paging@, @offset@ and @limit@ you may have specified, then wrapped and displayed
 
-h2(#eventinfo). Tag: @<txp:smd_event_info />@
+h2(#eventinfo). Tag: @<txp:smd_event_info>@
 
 Identical tag to "<txp:smd_calinfo />":#calinfo but for use inside @<txp:smd_article_event />@.
 
@@ -3093,7 +3102,7 @@ You have the entire arsenal of TXP tags available to you in a calendar. Thus you
 
 Similarly you can use any other TXP tags to show as much or as little detail as you like in the calendar cell.
 
-bc(block). <txp:smd_calendar section="events">
+bc. <txp:smd_calendar section="events">
 <div>
    Event: <txp:permlink><txp:title /></txp:permlink>
    <br /><txp:excerpt />
@@ -3110,14 +3119,14 @@ h3(#eg2). Example 2: conditional calendar
 
 Using the conditional tag you can take action if certain events contain particular flags. This example also shows a completely useless manner of employing @<txp:smd_cal_now />@.
 
-bc(block). Time is: <txp:smd_cal_now format="%T" />
+bc. Time is: <txp:smd_cal_now format="%T" />
 <txp:smd_calendar form="evform"
      stepfield="custom_3" skipfield="custom_6"
      spanform="multis" />
 
 In form @evform@:
 
-bc(block). <txp:smd_if_cal flag="recur">
+bc. <txp:smd_if_cal flag="recur">
   <txp:permlink>(RECUR)</txp:permlink>
 <txp:else />
    <txp:permlink><txp:title /></txp:permlink>
@@ -3131,7 +3140,7 @@ bc(block). <txp:smd_if_cal flag="recur">
 
 And in form @multis@:
 
-bc(block). <txp:smd_if_cal flag="multi, multiprev">
+bc. <txp:smd_if_cal flag="multi, multiprev">
    <txp:permlink>--&raquo;--</txp:permlink>
 </txp:smd_if_cal>
 <txp:smd_if_cal flag="multilast">
@@ -3148,7 +3157,7 @@ You could use the calendar tags to output various pieces of flag information to 
 
 This allows your site visitors to filter events by category while retaining the ability to show the calendar for the current month/year and section they are viewing instead of dropping back to the current month/year like other calendar systems often do.
 
-bc(block). <txp:smd_calendar isoweeks="WEEK#"
+bc. <txp:smd_calendar isoweeks="WEEK#"
      yearwidth="0,2" select="year, month"
      stepfield="custom_1" skipfield="custom_2"
      showskipped="1" expired="1">
@@ -3167,7 +3176,7 @@ h3(#eg4). Example 4: upcoming events
 
 List the next 5 upcoming -- recurring -- events, plus any standard and spanned events, formatting them as a definition list.
 
-bc(block). <h2>Upcoming Events</h2>
+bc. <h2>Upcoming Events</h2>
 <txp:smd_article_event stepfield="custom_1"
      wraptag="dl" time="future" eventlimit="5">
    <txp:if_different>
@@ -3185,7 +3194,7 @@ Note the hyperlinked title shown here will jump to the 'real' article (the first
 
 If you wanted to allow people to book an event, try this in your hyperlinked individual article:
 
-bc(block). <txp:if_individual_article>
+bc. <txp:if_individual_article>
  <txp:article limit="1">
   <h3><txp:title /></h3>
   <txp:body />
@@ -3208,7 +3217,7 @@ h3(#eg5). Example 5: iCal synchronisation
 
 How about being able to output your events in iCal format so other people can sync their calendars to yours? Put this in a new Page template in its own Section:
 
-bc(block). BEGIN:VCALENDAR
+bc. BEGIN:VCALENDAR
 VERSION:2.0
 X-WR-CALNAME:Gigs Calendar
 PRODID:-//Apple Computer, Inc//iCal 1.5//EN
@@ -3233,7 +3242,7 @@ Using the @now@ and @offset@ attributes of @<txp:smd_cal_now />@ you can effecti
 
 Plugging the @?month@ and @?year@ codes in allows you to make @<txp:smd_article_event />@ track the calendar. So you can automatically show only the events that occur in the month the visitor is browsing via the calendar:
 
-bc(block). <txp:smd_calendar stepfield="custom_1" />
+bc. <txp:smd_calendar stepfield="custom_1" />
 <h2>Events this month</h2>
 <txp:smd_article_event stepfield="custom_1"
      from='<txp:smd_cal_now now="01-?month-?year" />'
@@ -3242,7 +3251,9 @@ bc(block). <txp:smd_calendar stepfield="custom_1" />
 <li><txp:permlink><b><txp:title/></b></txp:permlink></li>
 </txp:smd_article_event>
 
-notextile. </div>
+h2. Author / credits
+
+"Stef Dawson":http://stefdawson.com/contact. Jointly funded by generous donators: mrdale, woof, jakob, renobird and joebaich. Originally based on mdp_calendar. All props to the original author, and of course the class upon which the calendar is based.
 # --- END PLUGIN HELP ---
 -->
 <?php
