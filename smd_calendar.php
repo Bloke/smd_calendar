@@ -281,7 +281,7 @@ function smd_calendar($atts, $thing = null)
     $stati = " Status IN (".join(',', $stati).")";
 
     $expired = ($expired) ? $expired : $prefs['publish_expired_articles'];
-    $expired = (($expired) ? '' : ' AND (now() <= Expires OR Expires = '.NULLDATETIME.')');
+    $expired = (($expired) ? '' : ' AND (now() <= Expires OR Expires IS NULL)');
     $eventclasses = do_list($eventclasses);
     $holidayflags = do_list($holidayflags);
     $linkposted = do_list($linkposted);
@@ -799,7 +799,7 @@ class SMD_Calendar extends SMD_Raw_Calendar
     var $debug = 0;
     var $events = array();
 
-    function __construct($size, $year, $month, $events, $section, $category, $debug = 0)
+    public function SMD_Calendar($size, $year, $month, $events, $section, $category, $debug = 0)
     {
         $this->debug = $debug;
         $this->section = $section;
@@ -1164,9 +1164,8 @@ class SMD_Raw_Calendar
      * @param integer, year
      * @param integer, month
      * @return object
-     * @public
      */
-    function __construct($yr, $mo, $debug = 0)
+    public function SMD_Raw_Calendar($yr, $mo, $debug = 0)
     {
         $this->setDebug($debug);
         $this->setYear($yr);
@@ -1958,7 +1957,7 @@ function smd_article_event($atts, $thing = null)
         switch($evtyp) {
             case 'standard':
                 if ($stepfield) {
-                    $subSQL[] = "(".$stepfield." = '' AND Expires = ".NULLDATETIME.")";
+                    $subSQL[] = "(".$stepfield." = '' AND Expires IS NULL)";
                 }
                 break;
             case 'recur':
@@ -1968,7 +1967,7 @@ function smd_article_event($atts, $thing = null)
                 break;
             case 'multi':
                 if ($stepfield) {
-                    $subSQL[] = "(".$stepfield." = '' AND Expires != ".NULLDATETIME.")";
+                    $subSQL[] = "(".$stepfield." = '' AND Expires IS NOT NULL)";
                 }
                 break;
         }
@@ -1993,7 +1992,7 @@ function smd_article_event($atts, $thing = null)
 
     $expired = ($expired) ? $expired : $prefs['publish_expired_articles'];
     if (!$expired) {
-        $filtSQL[] = '(now() <= Expires OR Expires = '.NULLDATETIME.')';
+        $filtSQL[] = '(now() <= Expires OR Expires IS NULL)';
     }
 
     // Sorting rules: data is sorted once as it is extracted via SQL and then again after the fake dates have been inserted
