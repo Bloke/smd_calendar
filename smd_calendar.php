@@ -116,7 +116,8 @@ if (class_exists('\Textpattern\Tag\Registry')) {
         ->register('smd_event_duration');
 }
 
-function smd_calendar($atts, $thing = null) {
+function smd_calendar($atts, $thing = null)
+{
     global $pretext, $thisarticle, $variable, $prefs, $smd_cal_flag, $smd_date, $smd_calinfo, $smd_cal_ucls;
 
     extract(lAtts(array(
@@ -788,7 +789,8 @@ function smd_calendar($atts, $thing = null) {
     return $calendar->display($static);
 }
 
-class SMD_Calendar extends SMD_Raw_Calendar {
+class SMD_Calendar extends SMD_Raw_Calendar
+{
     // Override Constructor
     // Permits multiple events to show per day
     var $section = '';
@@ -796,7 +798,9 @@ class SMD_Calendar extends SMD_Raw_Calendar {
     var $size = '';
     var $debug = 0;
     var $events = array();
-    function SMD_Calendar($size,$year,$month,$events,$section,$category, $debug=0) {
+
+    function __construct($size, $year, $month, $events, $section, $category, $debug = 0)
+    {
         $this->debug = $debug;
         $this->section = $section;
         $this->category = $category;
@@ -806,7 +810,8 @@ class SMD_Calendar extends SMD_Raw_Calendar {
     }
 
     // Override dspDayCell to display stuff right
-    function dspDayCell($theday) {
+    function dspDayCell($theday)
+    {
         global $smd_cal_flag, $smd_calinfo, $smd_cal_ucls, $smd_date, $permlink_mode;
 
         $smd_cal_flag = array();
@@ -927,7 +932,8 @@ class SMD_Calendar extends SMD_Raw_Calendar {
         }
     }
 
-    function display($static=false) {
+    function display($static = false)
+    {
         $sum = ($this->tblSummary) ? ' summary="'.$this->tblSummary.'"' : '';
         $id = ($this->tableID) ? ' id="'.$this->tableID.'"' : '';
         $c[] = ($this->tblCaption) ? '<caption>'.$this->tblCaption.'</caption>' : '';
@@ -940,7 +946,8 @@ class SMD_Calendar extends SMD_Raw_Calendar {
         return doTag(join('',$c),'table',$this->tableclass,$sum.$id);
     }
 
-    function dspHeader($static) {
+    function dspHeader($static)
+    {
         global $pretext, $smd_calinfo, $permlink_mode;
 
         $currmo = $this->month;
@@ -1099,7 +1106,8 @@ class SMD_Calendar extends SMD_Raw_Calendar {
         return doTag(join('',$c),'tr', 'smd_cal_navrow');
     }
 
-    function navigation($year,$month,$direction,$flt,$url='') {
+    function navigation($year, $month, $direction, $flt, $url = '')
+    {
         global $permlink_mode;
 
         if($direction == '-') {
@@ -1131,323 +1139,463 @@ class SMD_Calendar extends SMD_Raw_Calendar {
 }
 
 /**
-* Basic Calendar data and display
-* http://www.oscarm.org/static/pg/calendarClass/
-* @author Oscar Merida
-* @created Jan 18 2004
-*/
-class SMD_Raw_Calendar {
-var $gmt = 1, $lang, $debug = 0;
-var $year, $eyr, $lyr, $month, $week;
-var $dayNameFmt, $mthNameFmt, $dayNames, $mthNames, $startDay, $endDay, $firstDayOfWeek = 0, $startOffset = 0;
-var $selectors, $selbtn, $selpfx, $selsfx;
-var $showISOWeek, $ISOWeekHead, $ISOWeekCell;
-var $cls_lev, $cls_pfx, $fopts;
-var $evwraptag, $mywraptag;
-var $rowclass, $cellclass, $emptyclass, $isoclass, $myclass, $tableID, $tblSummary, $tblCaption;
-var $navpclass, $navnclass, $navparrow, $navnarrow, $navid;
-var $holidays, $cellform, $hdrform, $maintain, $remap;
-var $event_delim;
-/**
-* Constructor
-*
-* @param integer, year
-* @param integer, month
-* @return object
-* @public
-*/
-function SMD_Raw_Calendar ($yr, $mo, $debug=0) {
-    $this->setDebug($debug);
-    $this->setYear($yr);
-    $this->setMonth($mo);
-    $this->setClassPrefix('smd_cal_');
+ * Basic Calendar data and display
+ * http://www.oscarm.org/static/pg/calendarClass/
+ * @author Oscar Merida
+ * @created Jan 18 2004
+ */
+class SMD_Raw_Calendar
+{
+    var $gmt = 1, $lang, $debug = 0;
+    var $year, $eyr, $lyr, $month, $week;
+    var $dayNameFmt, $mthNameFmt, $dayNames, $mthNames, $startDay, $endDay, $firstDayOfWeek = 0, $startOffset = 0;
+    var $selectors, $selbtn, $selpfx, $selsfx;
+    var $showISOWeek, $ISOWeekHead, $ISOWeekCell;
+    var $cls_lev, $cls_pfx, $fopts;
+    var $evwraptag, $mywraptag;
+    var $rowclass, $cellclass, $emptyclass, $isoclass, $myclass, $tableID, $tblSummary, $tblCaption;
+    var $navpclass, $navnclass, $navparrow, $navnarrow, $navid;
+    var $holidays, $cellform, $hdrform, $maintain, $remap;
+    var $event_delim;
 
-    $this->startTime = strtotime( "$yr-$mo-01 00:00" );
-    $this->startDay = date( 'D', $this->startTime );
-    $this->endDay = date( 't', $this->startTime );
-    $this->endTime = strtotime( "$yr-$mo-".$this->endDay." 23:59:59" );
-    if ($this->debug) {
-        echo "++ THIS MONTH'S RENDERED CALENDAR [ start stamp // end date // start day // end stamp // end date // end day number ] ++";
-        dmp($this->startTime, date('Y-m-d H:i:s', $this->startTime), $this->startDay, $this->endTime, date('Y-m-d H:i:s', $this->endTime), $this->endDay);
+    /**
+     * Constructor
+     *
+     * @param integer, year
+     * @param integer, month
+     * @return object
+     * @public
+     */
+    function __construct($yr, $mo, $debug = 0)
+    {
+        $this->setDebug($debug);
+        $this->setYear($yr);
+        $this->setMonth($mo);
+        $this->setClassPrefix('smd_cal_');
+
+        $this->startTime = strtotime( "$yr-$mo-01 00:00" );
+        $this->startDay = date( 'D', $this->startTime );
+        $this->endDay = date( 't', $this->startTime );
+        $this->endTime = strtotime( "$yr-$mo-".$this->endDay." 23:59:59" );
+        if ($this->debug) {
+            echo "++ THIS MONTH'S RENDERED CALENDAR [ start stamp // end date // start day // end stamp // end date // end day number ] ++";
+            dmp($this->startTime, date('Y-m-d H:i:s', $this->startTime), $this->startDay, $this->endTime, date('Y-m-d H:i:s', $this->endTime), $this->endDay);
+        }
+        $this->setNameFormat('%a', 'd');
+        $this->setNameFormat('%B', 'm');
+        $this->setFirstDayOfWeek(0);
+        $this->setShowISOWeek('');
+        $this->setTableID('');
+        $this->setTableClass('');
     }
-    $this->setNameFormat('%a', 'd');
-    $this->setNameFormat('%B', 'm');
-    $this->setFirstDayOfWeek(0);
-    $this->setShowISOWeek('');
-    $this->setTableID('');
-    $this->setTableClass('');
-}
-// === end Calendar ===
-// Getters
-function useSelector($val) { return in_array($val, $this->selectors); }
-function getDayName($day) { return ($this->dayNames[$day%7]); }
-function getMonthName() {
-    if (is_array($this->mthNameFmt)) {
-        return $this->mthNames[date('n',$this->startTime)];
-    } else {
-        return strftime($this->mthNameFmt, $this->startTime);
+
+    function useSelector($val)
+    {
+        return in_array($val, $this->selectors);
     }
-}
-function getNavInfo($type) {
-    $r = '';
-    switch ($type) {
-        case "id": $r = $this->navid; break;
-        case "pc": $r = $this->navpclass; break;
-        case "nc": $r = $this->navnclass; break;
-        case "pa": $r = $this->navparrow; break;
-        case "na": $r = $this->navnarrow; break;
+
+    function getDayName($day)
+    {
+        return ($this->dayNames[$day%7]);
     }
-    return $r;
-}
-// Setters
-function setDebug($d){ $this->debug = $d; }
-function setGMT($b){ $this->gmt = $b; }
-function setLang($code){ $this->lang = $code; }
-function setSummary($txt){ $this->tblSummary = $txt; }
-function setCaption($txt){ $this->tblCaption = $txt; }
-function setCellForm($frm){ $this->cellform = $frm; }
-function setHdrForm($frm){ $this->hdrform = $frm; }
-function setTableID($id){ $this->tableID = $id; }
-function setYear($yr){ $this->year = $yr; }
-function setEYear($yr){ $this->eyr = $yr; }
-function setLYear($yr){ $this->lyr = $yr; }
-function setMonth($mth){ $this->month = (int)$mth; }
-function setWeek($wk){
-    if ($wk) {
-        $wk = str_pad($wk, 2, '0', STR_PAD_LEFT);
-        $this->week = $wk;
-        $this->month = safe_strftime("%m", strtotime($this->year."W".$wk));
+
+    function getMonthName()
+    {
+        if (is_array($this->mthNameFmt)) {
+            return $this->mthNames[date('n',$this->startTime)];
+        } else {
+            return strftime($this->mthNameFmt, $this->startTime);
+        }
     }
-}
-function setNavKeep($ar){ $this->maintain = $ar; }
-function setShowISOWeek($val) {
-    $this->showISOWeek = ($val) ? true : false;
-    if ($val) {
-        $val = do_list($val);
-        $this->ISOWeekHead = $val[0];
-        $this->ISOWeekCell = (isset($val[1])) ? $val[1] : '{week}';
+
+    function getNavInfo($type)
+    {
+        $r = '';
+        switch ($type) {
+            case "id": $r = $this->navid; break;
+            case "pc": $r = $this->navpclass; break;
+            case "nc": $r = $this->navnclass; break;
+            case "pa": $r = $this->navparrow; break;
+            case "na": $r = $this->navnarrow; break;
+        }
+        return $r;
     }
-}
-function setRemap($map){ $this->remap = $map; }
-function setClassLevels($cls){ $this->cls_lev = $cls; }
-function setClassPrefix($cls){ $this->cls_pfx = $cls; }
-function setEventWraptag($wrap){ $this->evwraptag = $wrap; }
-function setMYWraptag($wrap){ $this->mywraptag = $wrap; }
-function setTableClass($cls) { $this->tableclass = ($cls) ? $this->cls_pfx.$cls : ''; }
-function setRowClass($cls){ $this->rowclass = ($cls) ? $this->cls_pfx.$cls : ''; }
-function setCellClass($cls){ $this->cellclass = ($cls) ? $this->cls_pfx.$cls : ''; }
-function setEmptyClass($cls){ $this->emptyclass = ($cls) ? $this->cls_pfx.$cls : ''; }
-function setISOWeekClass($cls){ $this->isoclass = ($cls) ? $this->cls_pfx.$cls : ''; }
-function setDelim($dlm){ $this->event_delim = $dlm; }
-function setNavInfo($clsp, $clsn, $arrp, $arrn, $nid){
-    $this->navpclass = ($clsp) ? $this->cls_pfx.$clsp : '';
-    $this->navnclass = ($clsn) ? $this->cls_pfx.$clsn : '';
-    $this->navparrow = ($arrp) ? $arrp : '';
-    $this->navnarrow = ($arrn) ? $arrn : '';
-    $this->navid = ($nid) ? $this->cls_pfx.$nid : '';
-}
-function setMYClass($cls){ $this->myclass = ($cls) ? $this->cls_pfx.$cls : ''; }
-function setFilterOpts($f) { $this->fopts = $f; }
-function setHolidays($hols) { $this->holidays = $hols; }
-function setSelectors($sel, $btn) {
-    foreach ($sel as $idx => $item) {
-        $selparts = explode(":", $item);
-        $sel[$idx] = $selparts[0];
-        $this->selpfx[$selparts[0]] = (isset($selparts[1])) ? $selparts[1] : '';
-        $this->selsfx[$selparts[0]] = (isset($selparts[2])) ? $selparts[2] : '';
+
+    function setDebug($d)
+    {
+        $this->debug = $d;
     }
-    $this->selectors = $sel;
-    $this->selbtn = $btn;
-}
-function setFirstDayOfWeek($d) {
-    $this->firstDayOfWeek = ((int)$d <= 6 and (int)$d >= 0) ? (int)$d : 0;
-    $this->startOffset = date('w', $this->startTime) - $this->firstDayOfWeek;
-    if ( $this->startOffset < 0 ) {
-        $this->startOffset = 7 - abs($this->startOffset);
+
+    function setGMT($b)
+    {
+        $this->gmt = $b;
     }
-}
-/**
-* frm: any valid PHP strftime() string or ABBR/FULL
-* typ: d to set day, m to set month format
-*/
-function setNameFormat($frm, $typ="d") {
-    switch ($frm) {
-        case "full":
-        case "FULL":
-            $fmt = ($typ == 'd') ? "%A" : "%B";
-            break;
-        case "abbr":
-        case "ABBR":
-            $fmt = ($typ == 'd') ? "%a" : "%b";
-            break;
-        default:
-            if (strpos($frm, '%') === 0) {
-                $fmt = $frm;
-            } else {
-                $frm = trim($frm, '{}');
-                $frm = do_list($frm);
-                $fmt = $frm;
+
+    function setLang($code)
+    {
+        $this->lang = $code;
+    }
+
+    function setSummary($txt)
+    {
+        $this->tblSummary = $txt;
+    }
+
+    function setCaption($txt)
+    {
+        $this->tblCaption = $txt;
+    }
+
+    function setCellForm($frm)
+    {
+        $this->cellform = $frm;
+    }
+
+    function setHdrForm($frm)
+    {
+        $this->hdrform = $frm;
+    }
+
+    function setTableID($id)
+    {
+        $this->tableID = $id;
+    }
+
+    function setYear($yr)
+    {
+        $this->year = $yr;
+    }
+
+    function setEYear($yr)
+    {
+        $this->eyr = $yr;
+    }
+
+    function setLYear($yr)
+    {
+        $this->lyr = $yr;
+    }
+
+    function setMonth($mth)
+    {
+        $this->month = (int)$mth;
+    }
+
+    function setWeek($wk)
+    {
+        if ($wk) {
+            $wk = str_pad($wk, 2, '0', STR_PAD_LEFT);
+            $this->week = $wk;
+            $this->month = safe_strftime("%m", strtotime($this->year."W".$wk));
+        }
+    }
+
+    function setNavKeep($ar)
+    {
+        $this->maintain = $ar;
+    }
+
+    function setShowISOWeek($val)
+    {
+        $this->showISOWeek = ($val) ? true : false;
+        if ($val) {
+            $val = do_list($val);
+            $this->ISOWeekHead = $val[0];
+            $this->ISOWeekCell = (isset($val[1])) ? $val[1] : '{week}';
+        }
+    }
+
+    function setRemap($map)
+    {
+        $this->remap = $map;
+    }
+
+    function setClassLevels($cls)
+    {
+        $this->cls_lev = $cls;
+    }
+
+    function setClassPrefix($cls)
+    {
+        $this->cls_pfx = $cls;
+    }
+
+    function setEventWraptag($wrap)
+    {
+        $this->evwraptag = $wrap;
+    }
+
+    function setMYWraptag($wrap)
+    {
+        $this->mywraptag = $wrap;
+    }
+
+    function setTableClass($cls)
+    {
+        $this->tableclass = ($cls) ? $this->cls_pfx.$cls : '';
+    }
+
+    function setRowClass($cls)
+    {
+        $this->rowclass = ($cls) ? $this->cls_pfx.$cls : '';
+    }
+
+    function setCellClass($cls)
+    {
+        $this->cellclass = ($cls) ? $this->cls_pfx.$cls : '';
+    }
+
+    function setEmptyClass($cls)
+    {
+        $this->emptyclass = ($cls) ? $this->cls_pfx.$cls : '';
+    }
+
+    function setISOWeekClass($cls)
+    {
+        $this->isoclass = ($cls) ? $this->cls_pfx.$cls : '';
+    }
+
+    function setDelim($dlm)
+    {
+        $this->event_delim = $dlm;
+    }
+
+    function setNavInfo($clsp, $clsn, $arrp, $arrn, $nid)
+    {
+        $this->navpclass = ($clsp) ? $this->cls_pfx.$clsp : '';
+        $this->navnclass = ($clsn) ? $this->cls_pfx.$clsn : '';
+        $this->navparrow = ($arrp) ? $arrp : '';
+        $this->navnarrow = ($arrn) ? $arrn : '';
+        $this->navid = ($nid) ? $this->cls_pfx.$nid : '';
+    }
+
+    function setMYClass($cls)
+    {
+        $this->myclass = ($cls) ? $this->cls_pfx.$cls : '';
+    }
+
+    function setFilterOpts($f)
+    {
+        $this->fopts = $f;
+    }
+
+    function setHolidays($hols)
+    {
+        $this->holidays = $hols;
+    }
+
+    function setSelectors($sel, $btn)
+    {
+        foreach ($sel as $idx => $item) {
+            $selparts = explode(":", $item);
+            $sel[$idx] = $selparts[0];
+            $this->selpfx[$selparts[0]] = (isset($selparts[1])) ? $selparts[1] : '';
+            $this->selsfx[$selparts[0]] = (isset($selparts[2])) ? $selparts[2] : '';
+        }
+        $this->selectors = $sel;
+        $this->selbtn = $btn;
+    }
+
+    function setFirstDayOfWeek($d)
+    {
+        $this->firstDayOfWeek = ((int)$d <= 6 and (int)$d >= 0) ? (int)$d : 0;
+        $this->startOffset = date('w', $this->startTime) - $this->firstDayOfWeek;
+        if ( $this->startOffset < 0 ) {
+            $this->startOffset = 7 - abs($this->startOffset);
+        }
+    }
+
+    /**
+     *
+     * frm: any valid PHP strftime() string or ABBR/FULL
+     * typ: d to set day, m to set month format
+     */
+    function setNameFormat($frm, $typ = "d")
+    {
+        switch ($frm) {
+            case "full":
+            case "FULL":
+                $fmt = ($typ == 'd') ? "%A" : "%B";
+                break;
+            case "abbr":
+            case "ABBR":
+                $fmt = ($typ == 'd') ? "%a" : "%b";
+                break;
+            default:
+                if (strpos($frm, '%') === 0) {
+                    $fmt = $frm;
+                } else {
+                    $frm = trim($frm, '{}');
+                    $frm = do_list($frm);
+                    $fmt = $frm;
+                }
+                break;
+        }
+
+        if ($typ == "d") {
+            $this->dayNameFmt = $fmt;
+            $this->dayNames = array();
+
+            // This is done to make sure Sunday is always the first day of our array
+            $start = 0;
+            $end = $start + 7;
+            $sunday = strtotime('1970-Jan-04 12:00:00');
+
+            for($i=$start; $i<$end; $i++) {
+                if (is_array($fmt)) {
+                    $this->dayNames[] = $fmt[$i-$start];
+                } else {
+                    $this->dayNames[] = ucfirst(strftime($fmt, ($sunday + (86400*$i))));
+                }
             }
-            break;
-    }
-
-    if ($typ == "d") {
-        $this->dayNameFmt = $fmt;
-        $this->dayNames = array();
-
-        // This is done to make sure Sunday is always the first day of our array
-        $start = 0;
-        $end = $start + 7;
-        $sunday = strtotime('1970-Jan-04 12:00:00');
-
-        for($i=$start; $i<$end; $i++) {
-            if (is_array($fmt)) {
-                $this->dayNames[] = $fmt[$i-$start];
-            } else {
-                $this->dayNames[] = ucfirst(strftime($fmt, ($sunday + (86400*$i))));
-            }
-        }
-    } else {
-        $this->mthNameFmt = $fmt;
-        $this->mthNames = array();
-        for ($i=0; $i<12; $i++) {
-            if (is_array($fmt)) {
-                $this->mthNames[$i+1] = $fmt[$i];
+        } else {
+            $this->mthNameFmt = $fmt;
+            $this->mthNames = array();
+            for ($i=0; $i<12; $i++) {
+                if (is_array($fmt)) {
+                    $this->mthNames[$i+1] = $fmt[$i];
+                }
             }
         }
     }
-}
-/**
-* Return markup for displaying the calendar.
-* @return
-* @public
-*/
-function display ( ) {
-    $id = ($this->tableID) ? ' id="'.$this->tableID.'"' : '';
-    $c[] = '<table'.$id.'>';
-    $c[] = '<thead>' . $this->dspDayNames() . '</thead>';
-    $c[] = $this->dspDayCells();
-    $c[] = '</table>';
 
-    return join('',$c);
-}
-// === end display ===
-/**
-* Displays the row of day names.
-* @return string
-* @private
-*/
-function dspDayNames ( ) {
-    if ($this->hdrform) {
-        $reps = array(
-            '{firstday}' => $this->firstDayOfWeek,
-            '{daynames}' => join(',', $this->dayNames),
-            '{isoweekhead}' => $this->ISOWeekHead,
-            '{week}' => date('W', $this->startTime),
-            '{month}' => date('n', $this->startTime),
-            '{year}' => date('Y', $this->startTime),
-            '{isoyear}' => date('o', $this->startTime),
-        );
+    /**
+     * Return markup for displaying the calendar.
+     *
+     * @return
+     * @public
+     */
+    function display()
+    {
+        $id = ($this->tableID) ? ' id="'.$this->tableID.'"' : '';
+        $c[] = '<table'.$id.'>';
+        $c[] = '<thead>' . $this->dspDayNames() . '</thead>';
+        $c[] = $this->dspDayCells();
+        $c[] = '</table>';
 
-        return parse(strtr($this->hdrform, $reps));
-    } else {
-        $c[] = '<tr class="smd_cal_daynames">';
-
-        $i = $this->firstDayOfWeek;
-        $j = 0; // count number of days displayed
-        $end = false;
-
-        if ($this->showISOWeek) {
-            $c[] = "<th>".$this->ISOWeekHead."</th>";
-        }
-        for($j = 0; $j<=6; $j++, $i++) {
-            if($i == 7) { $i = 0; }
-            $c[] = '<th>'.$this->getDayName($i)."</th>";
-        }
-
-        $c[] = '</tr>';
         return join('',$c);
     }
-}
-// === end dspDayNames ===
-/**
-* Displays all day cells for the month
-*
-* @return string
-* @private
-*/
-function dspDayCells ( ) {
-    $i = 0; // cell counter
-    $emptyClass = $this->emptyclass;
-    $isoClass = $this->isoclass;
-    $rowClass = $this->rowclass;
-    $rowClass = ($rowClass) ? ' class="'.$rowClass.'"' : '';
 
-    $c[] = '<tr'.$rowClass.'>';
+    /**
+     * Displays the row of day names.
+     *
+     * @return string
+     * @private
+     */
+    function dspDayNames()
+    {
+        if ($this->hdrform) {
+            $reps = array(
+                '{firstday}' => $this->firstDayOfWeek,
+                '{daynames}' => join(',', $this->dayNames),
+                '{isoweekhead}' => $this->ISOWeekHead,
+                '{week}' => date('W', $this->startTime),
+                '{month}' => date('n', $this->startTime),
+                '{year}' => date('Y', $this->startTime),
+                '{isoyear}' => date('o', $this->startTime),
+            );
 
-    if ($this->showISOWeek) {
-        $reps = array(
-            '{week}' => date('W', $this->startTime),
-            '{month}' => date('n', $this->startTime),
-            '{year}' => date('Y', $this->startTime),
-            '{isoyear}' => date('o', $this->startTime),
-        );
-        $wkcell = strtr($this->ISOWeekCell, $reps);
-        $c[] = '<td class="'.$isoClass.'">'.$wkcell.'</td>';
-    }
-    // first display empty cells based on what weekday the month starts in
-    for( $j=0; $j<$this->startOffset; $j++ )    {
-        $i++;
-        $c[] = '<td class="'.$emptyClass.'">&nbsp;</td>';
-    } // end offset cells
+            return parse(strtr($this->hdrform, $reps));
+        } else {
+            $c[] = '<tr class="smd_cal_daynames">';
 
-    // write out the rest of the days, at each sunday, start a new row.
-    for( $d=1; $d<=$this->endDay; $d++ ) {
-        $i++;
-        $c[] = $this->dspDayCell( $d );
-        if ( $i%7 == 0 ) { $c[] = '</tr>'; }
-        if ( $d<$this->endDay && $i%7 == 0 ) {
-            $c[] = '<tr'.$rowClass.'>';
+            $i = $this->firstDayOfWeek;
+            $j = 0; // count number of days displayed
+            $end = false;
+
             if ($this->showISOWeek) {
-                // **Not** using safe_strtotime() here to cater for an operating timezone that differs from the server timezone.
-                // Probably should do this in other places too but no bugs have been filed yet so it can be done on a
-                // case-by-case basis
-                $theTime = strtotime($this->year."-".$this->month."-".(int)($d + 1) ." 00:00");
-                $reps = array(
-                    '{week}' => date('W', $theTime),
-                    '{month}' => date('n', $theTime),
-                    '{year}' => date('Y', $theTime),
-                    '{isoyear}' => date('o', $theTime),
-                );
-                $wkcell = strtr($this->ISOWeekCell, $reps);
-                $c[] = '<td class="'.$isoClass.'">'.$wkcell.'</td>';
+                $c[] = "<th>".$this->ISOWeekHead."</th>";
+            }
+            for($j = 0; $j<=6; $j++, $i++) {
+                if($i == 7) { $i = 0; }
+                $c[] = '<th>'.$this->getDayName($i)."</th>";
+            }
+
+            $c[] = '</tr>';
+            return join('',$c);
+        }
+    }
+
+    /**
+     * Displays all day cells for the month.
+     *
+     * @return string
+     * @private
+     */
+    function dspDayCells()
+    {
+        $i = 0; // cell counter
+        $emptyClass = $this->emptyclass;
+        $isoClass = $this->isoclass;
+        $rowClass = $this->rowclass;
+        $rowClass = ($rowClass) ? ' class="'.$rowClass.'"' : '';
+
+        $c[] = '<tr'.$rowClass.'>';
+
+        if ($this->showISOWeek) {
+            $reps = array(
+                '{week}' => date('W', $this->startTime),
+                '{month}' => date('n', $this->startTime),
+                '{year}' => date('Y', $this->startTime),
+                '{isoyear}' => date('o', $this->startTime),
+            );
+            $wkcell = strtr($this->ISOWeekCell, $reps);
+            $c[] = '<td class="'.$isoClass.'">'.$wkcell.'</td>';
+        }
+        // first display empty cells based on what weekday the month starts in
+        for( $j=0; $j<$this->startOffset; $j++ )    {
+            $i++;
+            $c[] = '<td class="'.$emptyClass.'">&nbsp;</td>';
+        } // end offset cells
+
+        // write out the rest of the days, at each sunday, start a new row.
+        for( $d=1; $d<=$this->endDay; $d++ ) {
+            $i++;
+            $c[] = $this->dspDayCell( $d );
+            if ( $i%7 == 0 ) { $c[] = '</tr>'; }
+            if ( $d<$this->endDay && $i%7 == 0 ) {
+                $c[] = '<tr'.$rowClass.'>';
+                if ($this->showISOWeek) {
+                    // **Not** using safe_strtotime() here to cater for an operating timezone that differs from the server timezone.
+                    // Probably should do this in other places too but no bugs have been filed yet so it can be done on a
+                    // case-by-case basis
+                    $theTime = strtotime($this->year."-".$this->month."-".(int)($d + 1) ." 00:00");
+                    $reps = array(
+                        '{week}' => date('W', $theTime),
+                        '{month}' => date('n', $theTime),
+                        '{year}' => date('Y', $theTime),
+                        '{isoyear}' => date('o', $theTime),
+                    );
+                    $wkcell = strtr($this->ISOWeekCell, $reps);
+                    $c[] = '<td class="'.$isoClass.'">'.$wkcell.'</td>';
+                }
             }
         }
-    }
-    // fill in the final row
-    $left = 7 - ( $i%7 );
-    if ( $left < 7) {
-        for ( $j=0; $j<$left; $j++ )    {
-          $c[] = '<td class="'.$emptyClass.'">&nbsp;</td>';
+        // fill in the final row
+        $left = 7 - ( $i%7 );
+        if ( $left < 7) {
+            for ( $j=0; $j<$left; $j++ )    {
+              $c[] = '<td class="'.$emptyClass.'">&nbsp;</td>';
+            }
+            $c[] = "\n\t</tr>";
         }
-        $c[] = "\n\t</tr>";
+        return '<tbody>' . join('',$c) . '</tbody>';
     }
-    return '<tbody>' . join('',$c) . '</tbody>';
-}
-// === end dspDayCells ===
-/**
-* outputs the contents for a given day
-*
-* @param integer, day
-* @abstract
-*/
-function dspDayCell ( $day ) {
-    return '<td>'.$day.'</td>';
-}
-// === end dayCell ===
-} // end class
 
-function smd_cal_minilink($row, $day, $month, $year, $use_posted=false) {
+    /**
+     * Outputs the contents for a given day.
+     *
+     * @param integer, day
+     * @abstract
+     */
+    function dspDayCell($day)
+    {
+        return '<td>'.$day.'</td>';
+    }
+}
+
+function smd_cal_minilink($row, $day, $month, $year, $use_posted = false)
+{
     global $permlink_mode;
 
     $lang = '';
@@ -1475,7 +1623,8 @@ function smd_cal_minilink($row, $day, $month, $year, $use_posted=false) {
 }
 
 // Perform one of two types of test: a flag-based test, or an info-based test
-function smd_if_cal($atts, $thing) {
+function smd_if_cal($atts, $thing)
+{
     global $smd_cal_flag, $smd_calinfo, $smd_date;
 
     extract(lAtts(array(
@@ -1545,13 +1694,15 @@ function smd_if_cal($atts, $thing) {
 }
 
 // Convenient wrapper for smd_cal_info use="event"
-function smd_event_info($atts) {
+function smd_event_info($atts)
+{
     $atts['use'] = 'event';
     return smd_cal_info($atts);
 }
 
 // Grab additional information about the current event
-function smd_cal_info($atts) {
+function smd_cal_info($atts)
+{
     global $pretext, $thisarticle, $smd_cal_flag, $smd_calinfo, $smd_date, $smd_eventinfo;
 
     extract(lAtts(array(
@@ -1672,7 +1823,8 @@ function smd_cal_info($atts) {
 }
 
 // Return a formatted timestamp, with optional 'time now' override
-function smd_cal_now($atts) {
+function smd_cal_now($atts)
+{
     global $dateformat;
 
     extract(lAtts(array(
@@ -1704,7 +1856,8 @@ function smd_cal_now($atts) {
 }
 
 // Set user-defined classes for a cell
-function smd_cal_class($atts) {
+function smd_cal_class($atts)
+{
     global $smd_cal_ucls;
 
     extract(lAtts(array(
@@ -1716,7 +1869,8 @@ function smd_cal_class($atts) {
 }
 
 // <txp:article_custom /> replacement(ish) tag that understands how to handle recurring events
-function smd_article_event($atts, $thing = null) {
+function smd_article_event($atts, $thing = null)
+{
     global $prefs, $pretext, $thispage, $thisarticle, $smd_eventinfo, $smd_cal_flag, $smd_date;
 
     extract(lAtts(array(
@@ -2196,7 +2350,8 @@ function smd_article_event($atts, $thing = null) {
 
 // Try and output "nice" dates that read well across month/year boundaries.
 // For example: 28 May - 05 Jun 2011 or May 11-16 2011, depending on format
-function smd_event_duration($atts) {
+function smd_event_duration($atts)
+{
     extract(lAtts(array(
         'start'     => posted(array('format' => '%s')),
         'end'       => expires(array('format' => '%s')),
@@ -2277,7 +2432,8 @@ function smd_event_duration($atts) {
 // An unoptimized workaround when "%V" and "%G" fails (usually on Windows)
 // Algorithm adapted from http://www.personal.ecu.edu/mccartyr/ISOwdALG.txt with thanks.
 // All other shortcut algorithms failed edge cases
-function smd_cal_iso_week($format='%V', $time = null) {
+function smd_cal_iso_week($format = '%V', $time = null)
+{
     if (!$time) $time = time();
 
     $yr = strftime("%Y", $time);
@@ -2335,7 +2491,8 @@ function smd_cal_iso_week($format='%V', $time = null) {
 }
 
 // Adapted from: http://php.net/manual/en/function.strftime.php
-function smd_cal_reformat_win($format, $ts = null) {
+function smd_cal_reformat_win($format, $ts = null)
+{
     // Only Win platforms need apply
     if (!is_windows()) return $format;
     if (!$ts) $ts = time();
@@ -2369,7 +2526,8 @@ function smd_cal_reformat_win($format, $ts = null) {
 }
 
 // Find if the haystack contains one of the values in needle. Is there a cleverer way to do this?
-function smd_cal_in_array($needle, $haystack) {
+function smd_cal_in_array($needle, $haystack)
+{
     foreach ($haystack as $val) {
         if (in_array($val, $needle)) {
             return true;
@@ -2379,7 +2537,8 @@ function smd_cal_in_array($needle, $haystack) {
 }
 
 // Check the passed timestamp against every time restriction and return true if it passes them all
-function smd_include_event($ts, $now, $ign, $time, $from, $to, $month) {
+function smd_include_event($ts, $now, $ign, $time, $from, $to, $month)
+{
     $show = array();
     $show[] = !in_array(date("d-M-Y", $ts), $ign);
     $time = do_list($time);
@@ -2410,7 +2569,8 @@ function smd_include_event($ts, $now, $ign, $time, $from, $to, $month) {
 
 // Convert date ranges like 24-Oct-08 => 5-Nov-08 to an array of discrete date entities
 // Also, weekday vals such as {Sun:Mon:Wed} would return those days between $start and $end
-function smd_expand_daterange($range, $start='', $end='', $fmt='%s') {
+function smd_expand_daterange($range, $start = '', $end = '', $fmt = '%s')
+{
     $out = array();
     $rng = do_list($range, "=>");
 
