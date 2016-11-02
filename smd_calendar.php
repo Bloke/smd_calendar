@@ -1817,7 +1817,7 @@ function smd_cal_info($atts)
             }
         }
     }
-    $ret = array_unique($ret);
+//    $ret = array_unique($ret);
     $out = (($join_prefix=="SMD_AUTO") ? (($html) ? '?' : '') : $join_prefix).join($join, $ret);
     return ($escape=='html') ? htmlspecialchars($out) : $out;
 }
