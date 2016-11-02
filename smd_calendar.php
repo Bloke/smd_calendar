@@ -164,6 +164,7 @@ function smd_calendar($atts, $thing='') {
         'firstday'      => 0,
         'maintain'      => 'calid',
         'nameval'       => '',
+        'event_delim'   => ',',
         'gmt'           => 0,
         'lang'          => '',
         'debug'         => 0,
@@ -235,7 +236,6 @@ function smd_calendar($atts, $thing='') {
     if ($frontpage && !$showall) {
         $fpSQL = filterFrontPage();
     }
-    $smd_calinfo['evid'] = 0;
     $smd_calinfo['artid'] = $thisarticle['thisid'];
     $smd_calinfo['artitle'] = $thisarticle['url_title'];
     $nameval = do_list($nameval);
@@ -456,7 +456,7 @@ function smd_calendar($atts, $thing='') {
         // Events that start or are added this month
         if (($start < $end) && ($start > $ts_first)) {
             populateArticleData($row);
-            $smd_calinfo['evid'] = $row['ID'];
+
             // a standard event or start of a multi
             if ($showspanned && $multi && !$recur) {
                 $smd_cal_flag[] = 'multifirst';
@@ -480,7 +480,7 @@ function smd_calendar($atts, $thing='') {
             $use_posted = in_array('standard', $linkposted);
 
             $op = ($thing) ? parse($thing) : (($form) ? parse_form($form) : (($size=="small") ? smd_cal_minilink($row, $idx, $month, $year, $use_posted) : href($row['Title'], permlinkurl($row), ' title="'.$row['Title'].'"')) );
-            $events[$idx][] = array('ev' => $op, 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $start_date);
+            $events[$idx][] = array('ev' => $op, 'evid' => $row['ID'], 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $start_date);
             $smd_cal_flag = $cflag = $smd_cal_ucls = array();
             $use_posted = '';
         }
@@ -590,7 +590,7 @@ function smd_calendar($atts, $thing='') {
                                 }
                             }
                             if (isset($events[$idx]) && $events[$idx] == NULL || !in_array($op, $used)) {
-                                $events[$idx][] = array('ev' => $op, 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $start_date);
+                                $events[$idx][] = array('ev' => $op, 'evid' => $row['ID'], 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $start_date);
                             }
                             $smd_cal_flag = $cflag = $smd_cal_ucls = array();
                             $use_posted = '';
@@ -633,7 +633,7 @@ function smd_calendar($atts, $thing='') {
                         $op = ($spanform) ? parse_form($spanform) : (($thing) ? parse($thing) : (($size=="small") ? smd_cal_minilink($row, $idx, $month, $year, $use_posted) : href('&rarr;', permlinkurl($row), ' title="'.$row['Title'].'"')) );
                     }
                 }
-                $events[$idx][] = array('ev' => $op, 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $start_date);
+                $events[$idx][] = array('ev' => $op, 'evid' => $row['ID'], 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $start_date);
                 $smd_cal_flag = $cflag = $smd_cal_ucls = array();
                 $use_posted = '';
             }
@@ -702,7 +702,7 @@ function smd_calendar($atts, $thing='') {
                                 $smd_date['w'] = strftime(smd_cal_reformat_win('%V', $tm), $tm);
                                 $smd_date['iy'] = strftime(smd_cal_reformat_win('%G', $tm), $tm);
                                 $op = ($spex && $spanform) ? parse_form($spanform) : (($thing) ? parse($thing) : (($form) ? parse_form($form) : (($size=="small") ? smd_cal_minilink($row, $idx, $month, $year, $use_posted) : href((($spex && $jdx>1) ? '&rarr;' : $row['Title']), permlinkurl($row), ' title="'.$row['Title'].'"')) ));
-                                $events[$idx][] = array('ev' => $op, 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $dt);
+                                $events[$idx][] = array('ev' => $op, 'evid' => $row['ID'], 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $dt);
                                 $smd_cal_flag = $cflag = $smd_cal_ucls = array();
                                 $use_posted = '';
                             }
@@ -749,6 +749,7 @@ function smd_calendar($atts, $thing='') {
     $calendar->setEYear($earliest);
     $calendar->setLYear($latest);
     $calendar->setFilterOpts($fopts);
+    $calendar->setDelim($event_delim);
     $calendar->setHolidays($holidays);
     $calendar->setSelectors(do_list($select), $selectbtn);
 
@@ -804,16 +805,18 @@ class SMD_Calendar extends SMD_Raw_Calendar {
             $runningclass[] = $this->cls_pfx.'today';
         }
 
-        $out = $flags = array();
+        $out = $flags = $evid = array();
         $fout = array('standard'=>array(),'recur'=>array(),'recurfirst'=>array(),'multifirst'=>array(),'multi'=>array(),'multiprev'=>array(),'multilast'=>array(),'cancel'=>array(),'extra'=>array());
         if (empty($this->cellform) && $this->size == 'large') {
             $out[] = hed($theday,4);
         }
+
+        $evcnt = 0;
         if( isset($this->events[$theday]) ) {
             $days_events = $this->events[$theday];
-            $evcnt = 0;
             foreach($days_events as $ev) {
                 $evclass = $ev['classes'];
+                $evid[] = $ev['evid'];
                 $flags = array_merge($flags, $ev['flag']);
                 if (in_array("cellplus", $this->cls_lev)) {
                     $runningclass = array_merge($runningclass, $evclass);
@@ -848,7 +851,7 @@ class SMD_Calendar extends SMD_Raw_Calendar {
             $smd_date['iy'] = strftime(smd_cal_reformat_win('%G', $thistime), $thistime);
             $smd_date['d'] = $theday;
             $reps = array(
-                '{evid}' => $smd_calinfo['evid'],
+                '{evid}' => join($this->event_delim, $evid),
                 '{standard}' => join('',$fout['standard']),
                 '{recur}' => join('',$fout['recur']),
                 '{recurfirst}' => join('',$fout['recurfirst']),
@@ -861,6 +864,7 @@ class SMD_Calendar extends SMD_Raw_Calendar {
                 '{cancel}' => join('',$fout['cancel']),
                 '{extra}' => join('',$fout['extra']),
                 '{events}' => join('',$out),
+                '{numevents}' => $evcnt,
                 '{day}' => $theday,
                 '{dayzeros}' => str_pad($theday, 2, '0', STR_PAD_LEFT),
                 '{weekday}' => ((is_array($this->dayNameFmt)) ? $this->dayNames[date('w',$thistime)] : strftime($this->dayNameFmt, $thistime)),
@@ -978,7 +982,7 @@ class SMD_Calendar extends SMD_Raw_Calendar {
                 if ( $idx == $currwk ) $tagatts .= ' selected="selected"';
                 $optiontags[] = doTag($this->selpfx['week'].str_pad($idx, 2, '0', STR_PAD_LEFT).$this->selsfx['week'], 'option', '', $tagatts);
             }
-            $selector[] = doTag(join(n, $optiontags), 'select', (($this->mywraptag) ? '' : $this->myclass), ' name="'.$this->remap['w'].'"'.(($this->selbtn) ? '' : ' onchange="submit()"'), '')
+            $selector[] = doTag(join(n, $optiontags), 'select', (($this->mywraptag) ? '' : $this->myclass), ' name="'.$this->remap['w'].'"'.(($this->selbtn) ? '' : ' onchange="this.form.submit()"'), '')
                 . (($this->useSelector('year')) ? '' : hInput($this->remap['y'], $curryr));
             $optiontags = array(); // Blank out
         }
@@ -992,7 +996,7 @@ class SMD_Calendar extends SMD_Raw_Calendar {
                     if ( $idx == $currmo ) $tagatts .= ' selected="selected"';
                     $optiontags[] = doTag($this->selpfx['month'].((is_array($this->mthNameFmt)) ? $this->mthNames[date('n',mktime(12,0,0,$idx,1))] : safe_strftime($this->mthNameFmt, mktime(12,0,0,$idx,1) )).$this->selsfx['month'], 'option', '', $tagatts);
                 }
-                $selector[] = doTag(join(n, $optiontags), 'select', (($this->mywraptag) ? '' : $this->myclass), ' name="'.$this->remap['m'].'"'.(($this->selbtn) ? '' : ' onchange="submit()"'), '')
+                $selector[] = doTag(join(n, $optiontags), 'select', (($this->mywraptag) ? '' : $this->myclass), ' name="'.$this->remap['m'].'"'.(($this->selbtn) ? '' : ' onchange="this.form.submit()"'), '')
                     . (($this->useSelector('year')) ? '' : hInput($this->remap['y'], $curryr));
                 $optiontags = array(); // Blank out
             } else {
@@ -1009,7 +1013,7 @@ class SMD_Calendar extends SMD_Raw_Calendar {
                 if ( $idx == $curryr ) $tagatts .= ' selected="selected"';
                 $optiontags[] = doTag($this->selpfx['year'].$idx.$this->selsfx['year'], 'option', '', $tagatts);
             }
-            $selector[] = doTag(join(n, $optiontags), 'select', (($this->mywraptag) ? '' : $this->myclass), ' name="'.$this->remap['y'].'"'.(($this->selbtn) ? '' : ' onchange="submit()"'), '')
+            $selector[] = doTag(join(n, $optiontags), 'select', (($this->mywraptag) ? '' : $this->myclass), ' name="'.$this->remap['y'].'"'.(($this->selbtn) ? '' : ' onchange="this.form.submit()"'), '')
                     . (($this->useSelector('month') || $this->useSelector('week')) ? '' : hInput($this->remap['m'], $currmo));
         } else {
             $selector[] = doTag($curryr, 'span', (($this->mywraptag) ? '' : $this->myclass));
@@ -1107,6 +1111,7 @@ var $evwraptag, $mywraptag;
 var $rowclass, $cellclass, $emptyclass, $isoclass, $myclass, $tableID, $tblSummary, $tblCaption;
 var $navpclass, $navnclass, $navparrow, $navnarrow, $navid;
 var $holidays, $cellform, $hdrform, $maintain, $remap;
+var $event_delim;
 /**
 * Constructor
 *
@@ -1197,6 +1202,7 @@ function setRowClass($cls){ $this->rowclass = ($cls) ? $this->cls_pfx.$cls : '';
 function setCellClass($cls){ $this->cellclass = ($cls) ? $this->cls_pfx.$cls : ''; }
 function setEmptyClass($cls){ $this->emptyclass = ($cls) ? $this->cls_pfx.$cls : ''; }
 function setISOWeekClass($cls){ $this->isoclass = ($cls) ? $this->cls_pfx.$cls : ''; }
+function setDelim($dlm){ $this->event_delim = $dlm; }
 function setNavInfo($clsp, $clsn, $arrp, $arrn, $nid){
     $this->navpclass = ($clsp) ? $this->cls_pfx.$clsp : '';
     $this->navnclass = ($clsn) ? $this->cls_pfx.$clsn : '';
