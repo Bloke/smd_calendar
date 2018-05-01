@@ -2493,7 +2493,10 @@ function smd_cal_iso_week($format = '%V', $time = null)
 function smd_cal_reformat_win($format, $ts = null)
 {
     // Only Win platforms need apply
-    if (!is_windows()) return $format;
+    if (!IS_WIN) {
+        return $format;
+    }
+
     if (!$ts) $ts = time();
 
     $mapping = array(
