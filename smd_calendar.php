@@ -17,7 +17,7 @@ $plugin['name'] = 'smd_calendar';
 // 1 = Plugin help is in raw HTML.  Not recommended.
 # $plugin['allow_html_help'] = 1;
 
-$plugin['version'] = '0.54';
+$plugin['version'] = '0.56';
 $plugin['author'] = 'Stef Dawson';
 $plugin['author_uri'] = 'http://stefdawson.com/';
 $plugin['description'] = 'Calendar / event / schedule system with events as Textpattern articles';
@@ -113,7 +113,13 @@ if (class_exists('\Textpattern\Tag\Registry')) {
         ->register('smd_if_cal')
         ->register('smd_article_event')
         ->register('smd_event_info')
-        ->register('smd_event_duration');
+        ->register('smd_event_duration')
+        ->register('smd_cal_minilink')
+        ->register('smd_cal_iso_week')
+        ->register('smd_cal_reformat_win')
+        ->register('smd_cal_in_array')
+        ->register('smd_cal_include_event')
+        ->register('smd_expand_daterange');
 }
 
 function smd_calendar($atts, $thing = null)
@@ -799,14 +805,14 @@ class SMD_Calendar extends SMD_Raw_Calendar
     var $debug = 0;
     var $events = array();
 
-    public function SMD_Calendar($size, $year, $month, $events, $section, $category, $debug = 0)
+    public function __construct($size, $year, $month, $events, $section, $category, $debug = 0)
     {
         $this->debug = $debug;
         $this->section = $section;
         $this->category = $category;
         $this->events = $events;
         $this->size = $size;
-        $this->smd_Raw_Calendar($year,$month,$debug);
+        parent::__construct($year,$month,$debug);
     }
 
     // Override dspDayCell to display stuff right
@@ -1165,7 +1171,7 @@ class SMD_Raw_Calendar
      * @param integer, month
      * @return object
      */
-    public function SMD_Raw_Calendar($yr, $mo, $debug = 0)
+    public function __construct($yr, $mo, $debug = 0)
     {
         $this->setDebug($debug);
         $this->setYear($yr);
