@@ -2315,12 +2315,14 @@ function smd_article_event($atts, $thing = null)
             $smd_cal_flag = $entry['flags'];
 
             $thisposted = date('Y-m-d', $row['uPosted']);
-            $nextposted = isset($all_evs['ev'][$idx+1]) ? date('Y-m-d', $all_evs['ev'][$idx+1]['uPosted']) : 0;
+            $nextposted = isset($all_evs[$idx+1]['ev']) ? date('Y-m-d', $all_evs[$idx+1]['ev']['uPosted']) : 0;
 
             // Adjust times so txp:posted/expires return correct stamps
-            $row['Posted'] = $row['Posted']-tz_offset(strtotime($row['Posted']));
+            $currPostTime = strtotime($row['Posted']);
+            $currExpireTime = strtotime($row['Expires']);
+            $row['Posted'] = date("Y-m-d H:i:s", $currPostTime-tz_offset($currPostTime));
             $row['uPosted'] = $row['uPosted']-tz_offset($row['uPosted']);
-            $row['Expires'] = ($row['uExpires'] == 0) ? '0000-00-00 00:00:00' : $row['Expires']-tz_offset(strtotime($row['Expires']));
+            $row['Expires'] = ($row['uExpires'] == 0) ? '0000-00-00 00:00:00' : date("Y-m-d H:i:s", $currExpireTime-tz_offset($currExpireTime));
             $row['uExpires'] = ($row['uExpires'] == 0) ? 0 : $row['uExpires']-tz_offset($row['uExpires']);
 
             // Populate additional event information
