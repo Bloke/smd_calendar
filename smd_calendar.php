@@ -113,13 +113,7 @@ if (class_exists('\Textpattern\Tag\Registry')) {
         ->register('smd_if_cal')
         ->register('smd_article_event')
         ->register('smd_event_info')
-        ->register('smd_event_duration')
-        ->register('smd_cal_minilink')
-        ->register('smd_cal_iso_week')
-        ->register('smd_cal_reformat_win')
-        ->register('smd_cal_in_array')
-        ->register('smd_cal_include_event')
-        ->register('smd_expand_daterange');
+        ->register('smd_event_duration');
 }
 
 function smd_calendar($atts, $thing = null)
@@ -219,9 +213,11 @@ function smd_calendar($atts, $thing = null)
     // Filters
     $fopts = array();
     $catSQL = $secSQL = $authSQL = $fpSQL = '';
-    if($category !== null) {
+
+    if ($category !== null) {
         $uncats = false;
         $allcats = do_list($category);
+
         if (($pos = array_search('SMD_UNCAT', $allcats)) !== false) {
             $uncats = true;
             unset($allcats[$pos]);
@@ -229,10 +225,13 @@ function smd_calendar($atts, $thing = null)
         }
         $fopts['c'] = $category; // TODO: Can fopts take a list? Should it include subcats?
         $subcats = (empty($subcats)) ? 0 : ((strtolower($subcats)=="all") ? 99999 : intval($subcats));
+
         if ($subcats) {
             $outcats = array();
+
             foreach ($allcats as $cat) {
                 $cats = getTree(doslash($cat), 'article');
+
                 foreach ($cats as $jdx => $val) {
                     if ($cats[$jdx]['level'] <= $subcats) {
                         $outcats[] = $cats[$jdx]['name'];
@@ -241,49 +240,60 @@ function smd_calendar($atts, $thing = null)
             }
             $allcats = $outcats;
         }
+
         $catSQL = doQuote(join("','", doSlash($allcats)));
         $catSQL = ($uncats ? " AND (Category1 = '' AND Category2 = '')" : '') .
             ($uncats && $allcats ? " OR " : ($allcats ? " AND " : '')) .
             ($allcats ? "( Category1 IN (".$catSQL.") OR Category2 IN (".$catSQL.") ) " : '');
     }
-    if($section) {
+
+    if ($section) {
         $secs = do_list($section);
         $smd_calinfo['s'] = $secs[0];
         $secSQL = doQuote(join("','", doSlash($secs)));
         $secSQL = " AND Section IN (".$secSQL.") ";
     }
-    if($realname) {
+
+    if ($realname) {
         $authors = safe_column('name', 'txp_users', 'RealName IN ('. doQuote(join("','", doArray(do_list($realname), 'urldecode'))) .')' );
         $author = join(',', $authors);
     }
-    if($author) {
+
+    if ($author) {
         $fopts['author'] = htmlentities(gps('author'));
         $authSQL = doQuote(join("','", doSlash(do_list($author))));
         $authSQL = " AND AuthorID IN (".$authSQL.") ";
     }
+
     if ($frontpage && !$showall) {
         $fpSQL = filterFrontPage();
     }
+
     $smd_calinfo['artid'] = $thisarticle['thisid'];
     $smd_calinfo['artitle'] = $thisarticle['url_title'];
     $nameval = do_list($nameval);
+
     foreach ($nameval as $nv) {
         $nv = explode("=", $nv);
+
         if ($nv[0]) {
             $fopts[$nv[0]] = ((isset($nv[1])) ? $nv[1] : '');
         }
     }
+
     $status = do_list($status);
     $stati = array();
+
     foreach ($status as $stat) {
         if (empty($stat)) {
             continue;
-        } else if (is_numeric($stat)) {
+        } elseif (is_numeric($stat)) {
             $stati[] = $stat;
         } else {
             $stati[] = getStatusNum($stat);
         }
     }
+
     $stati = " Status IN (".join(',', $stati).")";
 
     $expired = ($expired) ? $expired : $prefs['publish_expired_articles'];
@@ -302,10 +312,13 @@ function smd_calendar($atts, $thing = null)
 
     $yearwidth = do_list($yearwidth);
     $yearwidth[0] = (empty($yearwidth[0])) ? 0 : $yearwidth[0];
+
     if (count($yearwidth) == 1) {
         $yearwidth[1] = $yearwidth[0];
     }
+
     $usenow = array(false,false);
+
     foreach ($yearwidth as $yridx => $yritem) {
         if (strpos($yritem,"c") !== false) {
             $yearwidth[$yridx] = intval($yritem);
@@ -316,10 +329,12 @@ function smd_calendar($atts, $thing = null)
     // Remap w/m/y to other vars if required
     $remap = do_list($remap);
     $dmap = array("y" => "y", "m" => "m", "w" => "w");
+
     foreach ($remap as $dpair) {
         $dpair = do_list($dpair, ':');
         $dmap[$dpair[0]] = (isset($dpair[1])) ? $dpair[1] : $dpair[0];
     }
+
     $earliest = date("Y", strtotime("-".$yearwidth[0]." year", ( (empty($earliest) || $usenow[0]==true) ? time() : $earliest) ) );
     $latest = date("Y", strtotime("+".$yearwidth[1]." year", ( (empty($latest) || $usenow[1]==true) ? time() : $latest) ) );
 
@@ -329,59 +344,89 @@ function smd_calendar($atts, $thing = null)
     $in_month = (gps($dmap["m"]) and is_numeric(gps($dmap["m"]))) ? (int)gps($dmap["m"]) : '';
     $in_week = (gps($dmap["w"]) and is_numeric(gps($dmap["w"]))) ? (int)gps($dmap["w"]) : '';
 
-    if($static) { // if we're static w/o any supplied vars, use the current date
-        if(!$year) { $year = safe_strftime('%Y'); }
-        if(!$month) { $month = safe_strftime('%m'); }
+    if ($static) { // if we're static w/o any supplied vars, use the current date
+        if (!$year) {
+            $year = safe_strftime('%Y');
+        }
+
+        if (!$month) {
+            $month = safe_strftime('%m');
+        }
     } else { // otherwise use current date only if there's nothing else
-        if( $id == $in_calid ) { // use incoming
+        if ($id == $in_calid) { // use incoming
             $year = ($in_year) ? $in_year : (($year) ? $year : safe_strftime('%Y'));
             $month = ($in_month) ? $in_month : (($month) ? $month : safe_strftime('%m'));
             // If week is used, adjust month so it encompasses the given week
             $week = $in_week;
+
             if ($week) {
                 $month = safe_strftime("%m", strtotime($year."W".str_pad($week, 2, '0', STR_PAD_LEFT))); // Get the month from the week
             }
         } else { // use current
-            if(!$year) { $year = safe_strftime('%Y'); }
-            if(!$month) { $month = safe_strftime('%m'); }
-            if($week) { $month = safe_strftime("%m", strtotime($year."W".str_pad($week, 2, '0', STR_PAD_LEFT))); }
+            if (!$year) {
+                $year = safe_strftime('%Y');
+            }
+
+            if (!$month) {
+                $month = safe_strftime('%m');
+            }
+
+            if ($week) {
+                $month = safe_strftime("%m", strtotime($year."W".str_pad($week, 2, '0', STR_PAD_LEFT)));
+            }
         }
     }
+
     $smd_calinfo['id'] = ($in_calid) ? $in_calid : $id;
     $smd_date['y'] = $year; $smd_date['m'] = $month; // $week/day/isoyear are set per event later
 
     $ts_first = mktime(0, 0, 0, $month, 1, $year);
     $ts_last = mktime(23, 59, 59, $month, date('t',$ts_first), $year);
     $ts_lastoff = $ts_last - tz_offset($ts_last);
+
     if ($debug) {
         echo "++ THIS MONTH'S CALENDAR [ start stamp // end date // end stamp // end date // tz offset (end) ] ++";
         dmp($ts_first, date('Y-m-d H:i:s', $ts_first), $ts_last, date('Y-m-d H:i:s', $ts_last), $ts_lastoff);
     }
+
     $extrasql = $catSQL . $secSQL . $authSQL . $fpSQL;
 
-    switch($time) {
-        case "any" : break;
-        case "future" : $extrasql .= " AND Posted > now()"; break;
-        default : $extrasql .= " AND Posted < now()"; break; // The past
+    switch ($time) {
+        case "any":
+            break;
+        case "future":
+            $extrasql .= " AND Posted > now()";
+            break;
+        default:
+            // The past.
+            $extrasql .= " AND Posted < now()";
+            break;
     }
 
     // Holidays are global 'exclusions', either defined directly or in a txp:variable
     $holidays = do_list($holidays);
     $txphols = do_list($holidays[0], ":");
+
     if ($txphols[0] == "txpvar") {
         $holidays = do_list($variable[$txphols[1]]);
     }
+
     // Force each holiday to a known format. Holidays without years use current year
     foreach ($holidays as $key => $val) {
-        if (empty($val)) continue;
+        if (empty($val)) {
+            continue;
+        }
+
         $numparts = preg_match('/^([\d\w]+).?([\d\w]+).?([\d\w]+)?$/', $val, $parts);
 
         if ($numparts) {
             if (count($parts) == 3) {
                 $parts[3] = $year;
-         }
+            }
+
             $val = str_pad($parts[1], 2, '0', STR_PAD_LEFT).'-'.str_pad($parts[2], 2, '0', STR_PAD_LEFT).'-'.$parts[3];
         }
+
         $holidays[$key] = date("d-M-Y", safe_strtotime($val));
     }
 
@@ -432,6 +477,7 @@ function smd_calendar($atts, $thing = null)
             echo '++ EVENT START // END // (if non-zero) REAL END ++';
             dmp(date('d-M-Y H:i:s', $start) .' // '. date('d-M-Y H:i:s', $end) .' // '. ( ($real_end == 0) ? '' : date('d-M-Y H:i:s', $real_end) ));
             dmp($row['Title']);
+
             if ($debug > 2) {
                 dmp($row);
             }
@@ -441,6 +487,7 @@ function smd_calendar($atts, $thing = null)
         $recur = (empty($row[$stepfield])) ? false : true;
         $hol_hit = in_array(date("d-M-Y", $start), $holidays);
         $evclasses = array();
+
         foreach ($eventclasses as $evcls) {
             switch ($evcls) {
                 case "":
@@ -454,6 +501,7 @@ function smd_calendar($atts, $thing = null)
                     if (isset($row['Category1']) && !empty($row['Category1'])) {
                         $evclasses[] = $evc_pfx.$row['Category1'];
                     }
+
                     if (isset($row['Category2']) && !empty($row['Category2'])) {
                         $evclasses[] = $evc_pfx.$row['Category2'];
                     }
@@ -475,6 +523,7 @@ function smd_calendar($atts, $thing = null)
                     break;
             }
         }
+
         $ignore = array();
         $omit = array();
         $cflag = array();
@@ -492,15 +541,19 @@ function smd_calendar($atts, $thing = null)
             if ($showspanned && $multi && !$recur) {
                 $smd_cal_flag[] = 'multifirst';
             }
+
             if ($recur) {
                 $smd_cal_flag[] = 'recurfirst';
             }
+
             if (!$smd_cal_flag) {
                 $smd_cal_flag[] = 'standard';
             }
+
             if ( ( $hol_hit && !in_array('multi',$holidayflags) && in_array('multifirst',$smd_cal_flag) ) || ( $hol_hit && !in_array('standard',$holidayflags) && in_array('standard',$smd_cal_flag) ) ) {
                 $smd_cal_flag[] = 'cancel';
             }
+
             foreach ($smd_cal_flag as $item) {
                 $cflag[] = $cls_pfx.$item;
             }
@@ -521,52 +574,63 @@ function smd_calendar($atts, $thing = null)
         // Generate a skip array for this event
         if ($skipfield && $row[$skipfield] != '') {
             $ignores = do_list($row[$skipfield]);
+
             foreach ($ignores as $val) {
                 $igrng = smd_expand_daterange($val, $start, $end);
+
                 foreach ($igrng as $theval) {
                     $ignore[] = date("d-M-Y", $theval); // Force each date to a known format
                 }
             }
         }
+
         // Generate an omit array for this event
         if ($omitfield && $row[$omitfield] != '') {
             $omits = do_list($row[$omitfield]);
+
             foreach ($omits as $val) {
                 $omrng = smd_expand_daterange($val, $start, $end);
+
                 foreach ($omrng as $theval) {
                     $omit[] = date("d-M-Y", $theval);
                 }
             }
         }
+
         if ($debug > 1 && ($ignore || $omit)) {
             echo '++ OMITTED DATES ++';
             dmp($omit);
             echo '++ CANCELLED DATES ++';
             dmp($ignore);
         }
+
         // Calculate the date offsets and check recurring events that fall within the month of interest
         if ($stepfield && $row[$stepfield] != '') {
             $freq = do_list($row[$stepfield]);
             $stampoff = (int)(3600*$ev_hr) + (int)(60*$ev_mn) + (int)$ev_sc;
+
             foreach ($freq as $interval) {
                 $max_loop = 99999; // Yuk, but practically limitless
                 $origerval = $interval;
                 $interval = str_replace("?month", date('F', mktime(0,0,0,$month,1)), $interval);
                 $interval = str_replace("?year", $year, $interval);
+
                 if (strpos($interval, "last") === 0) {
                     $interval = date("l, F jS Y", strtotime( $interval, mktime(12, 0, 0, date("n", mktime(0,0,0,$month,1,$year))+1, 1, $year) ));
                     $max_loop = 1;
-                } else if (strpos($interval, "first") === 0) {
+                } elseif (strpos($interval, "first") === 0) {
                     $interval = date("l, F jS Y", strtotime( $interval, mktime(12, 0, 0, (($month>1) ? $month-1 : 12), date("t", mktime(0,0,0,$month-1,1,(($month==1) ? $year-1: $year))), (($month==1) ? $year-1: $year)) ));
                     $max_loop = 1;
-                } else if (strpos($interval, "this") === 0) {
+                } elseif (strpos($interval, "this") === 0) {
                     $max_loop = 1;
                 }
+
                 $ts_loop = 0;
                 $ts_curr = $start;
+
                 if (strpos($origerval, "?month") || strpos($origerval, "?year")) {
                     $max_loop = 1;
-            }
+                }
 
 //              $rng = smd_expand_daterange($interval);
 //dmp($interval, $rng);
@@ -577,6 +641,7 @@ function smd_calendar($atts, $thing = null)
                     } else {
                         $ts_curr = strtotime($interval, $ts_curr);
                     }
+
                     if ($ts_curr === false) {
                         $ts_loop++;
                         break;
@@ -584,6 +649,7 @@ function smd_calendar($atts, $thing = null)
                         if ($debug > 1) {
                             dmp("INTERVAL: ". date('d-M-Y H:i:s', $ts_curr+$stampoff));
                         }
+
                         if ($ts_curr < $end && $ts_curr >= $ts_first && $ts_curr != $start) {
                             // A recurring event. Check it isn't a holiday or to be ignored
                             populateArticleData($row);
@@ -600,9 +666,11 @@ function smd_calendar($atts, $thing = null)
                             if ( $omit_me ) {
                                 $smd_cal_flag[] = 'omit';
                             }
+
                             if ( (!$show_me || !$show_hol) && !$omit_me ) {
                                 $smd_cal_flag[] = 'cancel';
                             }
+
                             foreach ($smd_cal_flag as $item) {
                                 $cflag[] = $cls_pfx.$item;
                             }
@@ -616,29 +684,35 @@ function smd_calendar($atts, $thing = null)
                                     $op = ($recurform) ? parse_form($recurform) : (($thing) ? parse($thing) : (($size=="small") ? smd_cal_minilink($row, $idx, $month, $year, $use_posted) : href($row['Title'], permlinkurl($row), ' title="'.$row['Title'].'"')) );
                                 }
                             }
+
                             $used = array();
+
                             if (isset($events[$idx]) && $events[$idx] != NULL) {
                                 foreach ($events[$idx] as $ev) {
                                     $used[] = $ev['ev'];
                                 }
                             }
+
                             if (isset($events[$idx]) && $events[$idx] == NULL || !in_array($op, $used)) {
                                 $events[$idx][] = array('ev' => $op, 'evid' => $row['ID'], 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $start_date);
                             }
+
                             $smd_cal_flag = array();
                             $cflag = array();
                             $smd_cal_ucls = array();
                             $use_posted = '';
                         }
+
                         $ts_loop++;
                     }
                 }
             }
-        } else if ($showspanned && $multi) {
+        } elseif ($showspanned && $multi) {
             // Non-recurring events may span more than one date but they must still respect ignored dates and holidays
             populateArticleData($row);
             $lastday = (int)strftime('%d', $end);
             $real_lastday = (int)strftime('%d', $real_end);
+
             while (++$idx <= $lastday) {
                 $op = '';
                 $multiflag = (($year==$real_end_year) && ($month==$real_end_month) && ($idx==$real_lastday)) ? 'multilast' : (($idx==1) ? 'multiprev' : 'multi');
@@ -650,24 +724,29 @@ function smd_calendar($atts, $thing = null)
                 $hol_hit = in_array($thisdate, $holidays);
                 $show_hol = ($hol_hit && !in_array('multi',$holidayflags) ) ? false : true;
                 $use_posted = smd_cal_in_array(array('multi', 'multifirst', 'multilast', 'multiprev'), $linkposted);
-                if ( $omit_me ) {
+
+                if ($omit_me) {
                     $smd_cal_flag[] = 'omit';
                 }
-                if ( (!$show_me || !$show_hol) && !$omit_me ) {
+
+                if ((!$show_me || !$show_hol) && !$omit_me) {
                     $smd_cal_flag[] = 'cancel';
                 }
+
                 foreach ($smd_cal_flag as $item) {
                     $cflag[] = $cls_pfx.$item;
                 }
+
                 // Create the spanned event that appears in the cell
                 if (!$omit_me) {
-                    if ( ($show_me && $show_hol) || $showskipped) {
+                    if (($show_me && $show_hol) || $showskipped) {
                         $smd_date['d'] = $idx;
                         $smd_date['w'] = strftime(smd_cal_reformat_win('%V', $thistime), $thistime);
                         $smd_date['iy'] = strftime(smd_cal_reformat_win('%G', $thistime), $thistime);
                         $op = ($spanform) ? parse_form($spanform) : (($thing) ? parse($thing) : (($size=="small") ? smd_cal_minilink($row, $idx, $month, $year, $use_posted) : href('&rarr;', permlinkurl($row), ' title="'.$row['Title'].'"')) );
                     }
                 }
+
                 $events[$idx][] = array('ev' => $op, 'evid' => $row['ID'], 'flag' => $smd_cal_flag, 'classes' => array_merge($cflag, $smd_cal_ucls, $evclasses), 'posted' => $start_date);
                 $smd_cal_flag = array();
                 $cflag = array();
@@ -675,6 +754,7 @@ function smd_calendar($atts, $thing = null)
                 $use_posted = '';
             }
         }
+
         // Add any extra dates for this event that are within the current month
         if ($extrafield && $row[$extrafield] != '') {
             $xtra = do_list($row[$extrafield]);
@@ -682,6 +762,7 @@ function smd_calendar($atts, $thing = null)
             $ev_mn = date('i', $start);
             $ev_sc = date('s', $start);
             $stampoff = (int)(3600*$ev_hr) + (int)(60*$ev_mn) + (int)$ev_sc;
+
             foreach ($xtra as $val) {
                 if (strpos($val, "+") === false) {
                     $exrng = smd_expand_daterange($val);
@@ -696,18 +777,22 @@ function smd_calendar($atts, $thing = null)
                 }
 
                 for ($jdx = 1; $jdx <= $spidth; $jdx++) {
-                    $tm = safe_strtotime($val . (($jdx==1) ? '' : '+'.($jdx-1).' days'));
+                    $tm = safe_strtotime($val . (($jdx == 1) ? '' : '+'.($jdx-1).' days'));
+
                     if ($diff > 0 && $jdx == 1) {
                         $expstamp = $tm+$stampoff+$real_diff;
                     }
+
                     $idx = $smd_date['d'] = (int)strftime('%d', $tm);
                     $dt = date("Y-m-d", $tm);
                     $lst = ($extrastrict) ? $end : $ts_last;
+
                     if ($tm < $lst && $tm >= $ts_first) {
                         $fakerow = $row;
                         $fakerow['Posted'] = date("Y-m-d H:i:s", $tm+$stampoff);
                         $fakerow['uPosted'] = $tm+$stampoff;
-                        if ($diff>0) {
+
+                        if ($diff > 0) {
                             $fakerow['Expires'] = date("Y-m-d H:i:s", $expstamp);
                             $fakerow['uExpires'] = $expstamp;
                         }
@@ -717,6 +802,7 @@ function smd_calendar($atts, $thing = null)
                         $cflag[] = $cls_pfx.'extra';
                         $omit_me = false;
                         $show_me = $show_hol = true;
+
                         if ($spex) {
                             $multiflag = ($jdx==1) ? 'multifirst' : (($jdx==$spidth) ? 'multilast' : (($idx==1) ? 'multiprev' : 'multi'));
                             $thisdate = date("d-M-Y", $tm);
@@ -725,17 +811,21 @@ function smd_calendar($atts, $thing = null)
                             $hol_hit = in_array($thisdate, $holidays);
                             $show_hol = ($hol_hit && !in_array('multi',$holidayflags) ) ? false : true;
                             $use_posted = in_array('extra', $linkposted);
+
                             if ($omit_me) {
                                 $smd_cal_flag[] = 'omit';
                             }
-                            if ( (!$show_me || !$show_hol) && !$omit_me ) {
+
+                            if ((!$show_me || !$show_hol) && !$omit_me) {
                                 $smd_cal_flag[] = 'cancel';
                             }
+
                             $smd_cal_flag[] = $multiflag;
                             $cflag[] = $cls_pfx.$multiflag;
                         }
+
                         if (!$omit_me) {
-                            if ( ($show_me && $show_hol) || $showskipped) {
+                            if (($show_me && $show_hol) || $showskipped) {
                                 $smd_date['w'] = strftime(smd_cal_reformat_win('%V', $tm), $tm);
                                 $smd_date['iy'] = strftime(smd_cal_reformat_win('%G', $tm), $tm);
                                 $op = ($spex && $spanform) ? parse_form($spanform) : (($thing) ? parse($thing) : (($form) ? parse_form($form) : (($size=="small") ? smd_cal_minilink($row, $idx, $month, $year, $use_posted) : href((($spex && $jdx>1) ? '&rarr;' : $row['Title']), permlinkurl($row), ' title="'.$row['Title'].'"')) ));
@@ -751,6 +841,7 @@ function smd_calendar($atts, $thing = null)
             }
         }
     }
+
     article_pop();
 
     if ($debug > 1 && $events) {
@@ -828,13 +919,17 @@ class SMD_Calendar extends SMD_Raw_Calendar
 
         $thedate = mktime(0, 0, 0, $this->month, $theday, $this->year);
         $hol_hit = in_array(date("d-M-Y", $thedate), $this->holidays);
+
         if ($hasarticle) {
             $smd_cal_flag[] = 'event';
         }
+
         if ($hol_hit) {
             $smd_cal_flag[] = 'hols';
         }
+
         $cflag = array();
+
         foreach ($smd_cal_flag as $item) {
             $cflag[] = $this->cls_pfx.$item;
         }
@@ -842,10 +937,11 @@ class SMD_Calendar extends SMD_Raw_Calendar
         if ($this->cellclass) {
             $tdclass[] = $this->cellclass;
         }
+
         $tdclass = array_merge($tdclass, $cflag);
         $runningclass = (in_array("cell", $this->cls_lev) || in_array("cellplus", $this->cls_lev)) ? $tdclass : array();
 
-        if($this->year == date('Y',$now) and $this->month == date('n',$now) and $theday == date('j',$now) ) {
+        if ($this->year == date('Y',$now) and $this->month == date('n',$now) and $theday == date('j',$now) ) {
             $smd_cal_flag[] = 'today';
             $runningclass[] = $this->cls_pfx.'today';
         }
@@ -854,27 +950,35 @@ class SMD_Calendar extends SMD_Raw_Calendar
         $flags = array();
         $evid = array();
         $fout = array('standard'=>array(),'recur'=>array(),'recurfirst'=>array(),'multifirst'=>array(),'multi'=>array(),'multiprev'=>array(),'multilast'=>array(),'cancel'=>array(),'extra'=>array());
+
         if (empty($this->cellform) && $this->size == 'large') {
             $out[] = hed($theday,4);
         }
 
         $evcnt = 0;
-        if( isset($this->events[$theday]) ) {
+
+        if (isset($this->events[$theday])) {
             $days_events = $this->events[$theday];
-            foreach($days_events as $ev) {
+
+            foreach ($days_events as $ev) {
                 $evclass = $ev['classes'];
                 $evid[] = $ev['evid'];
                 $flags = array_merge($flags, $ev['flag']);
+
                 if (in_array("cellplus", $this->cls_lev)) {
                     $runningclass = array_merge($runningclass, $evclass);
                 }
+
                 $cls = ($evclass && in_array("event", $this->cls_lev)) ? ' class="'.join(' ', $evclass).'"' : '';
                 $op = ($this->evwraptag) ? tag($ev['ev'], $this->evwraptag, $cls) : $ev['ev'];
+
                 foreach ($ev['flag'] as $flev) {
                     $fout[$flev][] = $op;
                 }
+
                 $out[] = $op;
                 $evcnt++;
+
                 if ($this->size == 'small' && $evcnt == 1) {
                     break;
                 }
@@ -885,6 +989,7 @@ class SMD_Calendar extends SMD_Raw_Calendar
 
         // Amalgamate the event-level classes and cell-level classes if required
         $runningclass = array_unique($runningclass);
+
         if (in_array("cellplus", $this->cls_lev)) {
             $smd_cal_flag = array_merge($smd_cal_flag, $flags);
         }
@@ -968,6 +1073,7 @@ class SMD_Calendar extends SMD_Raw_Calendar
         $fopts = $this->fopts;
 
         $sec = (isset($smd_calinfo['s']) && !empty($smd_calinfo['s'])) ? $smd_calinfo['s'] : '';
+
         foreach ($this->maintain as $col) {
             switch ($col) {
                 case "section":
@@ -1016,6 +1122,7 @@ class SMD_Calendar extends SMD_Raw_Calendar
         $fopts = array_unique($fopts);
         $filters = array();
         $filterHid = array();
+
         if (!$static) {
             foreach($fopts as $key => $val) {
                 $filters[] = $key.'='.$val;
@@ -1026,11 +1133,14 @@ class SMD_Calendar extends SMD_Raw_Calendar
         // Week select list
         if ($this->useSelector('week') && !$static) {
             $currwk = ($this->week) ? $this->week : date('W', safe_strtotime($curryr."-".$currmo."-1 12:00"));
-            for ( $idx = 1; $idx <= 53; $idx++ ) {
+
+            for ($idx = 1; $idx <= 53; $idx++) {
                 $tagatts = ' value="'.$idx.'"';
-                if ( $idx == $currwk ) $tagatts .= ' selected="selected"';
+
+                if ($idx == $currwk) $tagatts .= ' selected="selected"';
                 $optiontags[] = doTag($this->selpfx['week'].str_pad($idx, 2, '0', STR_PAD_LEFT).$this->selsfx['week'], 'option', '', $tagatts);
             }
+
             $selector[] = doTag(join(n, $optiontags), 'select', (($this->mywraptag) ? '' : $this->myclass), ' name="'.$this->remap['w'].'"'.(($this->selbtn) ? '' : ' onchange="this.form.submit()"'), '')
                 . (($this->useSelector('year')) ? '' : hInput($this->remap['y'], $curryr));
             $optiontags = array(); // Blank out
@@ -1040,11 +1150,14 @@ class SMD_Calendar extends SMD_Raw_Calendar
         // bizarre repeated month names on the 31st of some months :-\
         if (!$this->useSelector('week')) {
             if ($this->useSelector('month') && !$static) {
-                for ( $idx = 1; $idx <= 12; $idx++ ) {
+                for ($idx = 1; $idx <= 12; $idx++) {
                     $tagatts = ' value="'.$idx.'"';
-                    if ( $idx == $currmo ) $tagatts .= ' selected="selected"';
+
+                    if ($idx == $currmo ) $tagatts .= ' selected="selected"';
+
                     $optiontags[] = doTag($this->selpfx['month'].((is_array($this->mthNameFmt)) ? $this->mthNames[date('n',mktime(12,0,0,$idx,1))] : safe_strftime($this->mthNameFmt, mktime(12,0,0,$idx,1) )).$this->selsfx['month'], 'option', '', $tagatts);
                 }
+
                 $selector[] = doTag(join(n, $optiontags), 'select', (($this->mywraptag) ? '' : $this->myclass), ' name="'.$this->remap['m'].'"'.(($this->selbtn) ? '' : ' onchange="this.form.submit()"'), '')
                     . (($this->useSelector('year')) ? '' : hInput($this->remap['y'], $curryr));
                 $optiontags = array(); // Blank out
@@ -1056,12 +1169,17 @@ class SMD_Calendar extends SMD_Raw_Calendar
         // Year select list
         $y0 = $this->eyr;
         $y1 = $this->lyr;
+
         if ($this->useSelector('year') && ($y0 != $y1) && !$static) {
-            for ( $idx = $y0; $idx <= $y1; $idx++ ) {
+            for ($idx = $y0; $idx <= $y1; $idx++) {
                 $tagatts = ' value="'.$idx.'"';
-                if ( $idx == $curryr ) $tagatts .= ' selected="selected"';
+                if ($idx == $curryr) {
+                    $tagatts .= ' selected="selected"';
+                }
+
                 $optiontags[] = doTag($this->selpfx['year'].$idx.$this->selsfx['year'], 'option', '', $tagatts);
             }
+
             $selector[] = doTag(join(n, $optiontags), 'select', (($this->mywraptag) ? '' : $this->myclass), ' name="'.$this->remap['y'].'"'.(($this->selbtn) ? '' : ' onchange="this.form.submit()"'), '')
                     . (($this->useSelector('month') || $this->useSelector('week')) ? '' : hInput($this->remap['m'], $currmo));
         } else {
@@ -1070,15 +1188,18 @@ class SMD_Calendar extends SMD_Raw_Calendar
 
         $request = serverSet('REQUEST_URI');
         $redirect = serverSet('REDIRECT_URL');
+
         if (!empty($redirect) && ($request != $redirect) && is_callable('_l10n_set_browse_language')) {
             // MLP in da house: use the redirect URL instead
             $request = $redirect;
         }
+
         $urlp = parse_url($request);
         $action = $urlp['path'];
 
         if ($permlink_mode == 'messy') {
             $out = makeOut('id','s','c','q','pg','p','month');
+
             foreach($out as $key => $val) {
                 if ($val) {
                     $filters[] = $key.'='.$val;
@@ -1086,14 +1207,17 @@ class SMD_Calendar extends SMD_Raw_Calendar
                 }
             }
         }
+
         $filterHid = array_unique($filterHid);
         $filters = array_unique($filters);
 
         $extras = '';
+
         if (!$static && ( $this->useSelector('month') || $this->useSelector('year') )) {
             if ($this->selbtn) {
                 $extras .= doTag('', 'input', 'smd_cal_input', ' type="submit" value="'.$this->selbtn.'"');
             }
+
             $extras .= join(n, $filterHid);
         }
 
@@ -1116,15 +1240,15 @@ class SMD_Calendar extends SMD_Raw_Calendar
     {
         global $permlink_mode;
 
-        if($direction == '-') {
-            if($month - 1 < 1) {
+        if ($direction == '-') {
+            if ($month - 1 < 1) {
                 $month = 12;
                 $year -= 1;
             } else {
                 $month -= 1;
             }
         } else {
-            if($month + 1 > 12) {
+            if ($month + 1 > 12) {
                 $month = 1;
                 $year += 1;
             } else {
@@ -1182,10 +1306,12 @@ class SMD_Raw_Calendar
         $this->startDay = date( 'D', $this->startTime );
         $this->endDay = date( 't', $this->startTime );
         $this->endTime = strtotime( "$yr-$mo-".$this->endDay." 23:59:59" );
+
         if ($this->debug) {
             echo "++ THIS MONTH'S RENDERED CALENDAR [ start stamp // end date // start day // end stamp // end date // end day number ] ++";
             dmp($this->startTime, date('Y-m-d H:i:s', $this->startTime), $this->startDay, $this->endTime, date('Y-m-d H:i:s', $this->endTime), $this->endDay);
         }
+
         $this->setNameFormat('%a', 'd');
         $this->setNameFormat('%B', 'm');
         $this->setFirstDayOfWeek(0);
@@ -1216,13 +1342,25 @@ class SMD_Raw_Calendar
     function getNavInfo($type)
     {
         $r = '';
+
         switch ($type) {
-            case "id": $r = $this->navid; break;
-            case "pc": $r = $this->navpclass; break;
-            case "nc": $r = $this->navnclass; break;
-            case "pa": $r = $this->navparrow; break;
-            case "na": $r = $this->navnarrow; break;
+            case "id":
+                $r = $this->navid;
+                break;
+            case "pc":
+                $r = $this->navpclass;
+                break;
+            case "nc":
+                $r = $this->navnclass;
+                break;
+            case "pa":
+                $r = $this->navparrow;
+                break;
+            case "na":
+                $r = $this->navnarrow;
+                break;
         }
+
         return $r;
     }
 
@@ -1303,6 +1441,7 @@ class SMD_Raw_Calendar
     function setShowISOWeek($val)
     {
         $this->showISOWeek = ($val) ? true : false;
+
         if ($val) {
             $val = do_list($val);
             $this->ISOWeekHead = $val[0];
@@ -1397,6 +1536,7 @@ class SMD_Raw_Calendar
             $this->selpfx[$selparts[0]] = (isset($selparts[1])) ? $selparts[1] : '';
             $this->selsfx[$selparts[0]] = (isset($selparts[2])) ? $selparts[2] : '';
         }
+
         $this->selectors = $sel;
         $this->selbtn = $btn;
     }
@@ -1405,7 +1545,8 @@ class SMD_Raw_Calendar
     {
         $this->firstDayOfWeek = ((int)$d <= 6 and (int)$d >= 0) ? (int)$d : 0;
         $this->startOffset = date('w', $this->startTime) - $this->firstDayOfWeek;
-        if ( $this->startOffset < 0 ) {
+
+        if ($this->startOffset < 0) {
             $this->startOffset = 7 - abs($this->startOffset);
         }
     }
@@ -1446,7 +1587,7 @@ class SMD_Raw_Calendar
             $end = $start + 7;
             $sunday = strtotime('1970-Jan-04 12:00:00');
 
-            for($i=$start; $i<$end; $i++) {
+            for ($i = $start; $i < $end; $i++) {
                 if (is_array($fmt)) {
                     $this->dayNames[] = $fmt[$i-$start];
                 } else {
@@ -1456,7 +1597,8 @@ class SMD_Raw_Calendar
         } else {
             $this->mthNameFmt = $fmt;
             $this->mthNames = array();
-            for ($i=0; $i<12; $i++) {
+
+            for ($i = 0; $i < 12; $i++) {
                 if (is_array($fmt)) {
                     $this->mthNames[$i+1] = $fmt[$i];
                 }
@@ -1511,12 +1653,14 @@ class SMD_Raw_Calendar
             if ($this->showISOWeek) {
                 $c[] = "<th>".$this->ISOWeekHead."</th>";
             }
-            for($j = 0; $j<=6; $j++, $i++) {
+
+            for ($j = 0; $j<=6; $j++, $i++) {
                 if($i == 7) { $i = 0; }
                 $c[] = '<th>'.$this->getDayName($i)."</th>";
             }
 
             $c[] = '</tr>';
+
             return join('',$c);
         }
     }
@@ -1547,19 +1691,25 @@ class SMD_Raw_Calendar
             $wkcell = strtr($this->ISOWeekCell, $reps);
             $c[] = '<td class="'.$isoClass.'">'.$wkcell.'</td>';
         }
+
         // first display empty cells based on what weekday the month starts in
-        for( $j=0; $j<$this->startOffset; $j++ )    {
+        for ($j = 0; $j < $this->startOffset; $j++) {
             $i++;
             $c[] = '<td class="'.$emptyClass.'">&nbsp;</td>';
         } // end offset cells
 
         // write out the rest of the days, at each sunday, start a new row.
-        for( $d=1; $d<=$this->endDay; $d++ ) {
+        for ($d = 1; $d <= $this->endDay; $d++) {
             $i++;
             $c[] = $this->dspDayCell( $d );
-            if ( $i%7 == 0 ) { $c[] = '</tr>'; }
-            if ( $d<$this->endDay && $i%7 == 0 ) {
+
+            if ($i%7 == 0) {
+                $c[] = '</tr>';
+            }
+
+            if ($d < $this->endDay && $i%7 == 0) {
                 $c[] = '<tr'.$rowClass.'>';
+
                 if ($this->showISOWeek) {
                     // **Not** using safe_strtotime() here to cater for an operating timezone that differs from the server timezone.
                     // Probably should do this in other places too but no bugs have been filed yet so it can be done on a
@@ -1571,19 +1721,24 @@ class SMD_Raw_Calendar
                         '{year}' => date('Y', $theTime),
                         '{isoyear}' => date('o', $theTime),
                     );
+
                     $wkcell = strtr($this->ISOWeekCell, $reps);
                     $c[] = '<td class="'.$isoClass.'">'.$wkcell.'</td>';
                 }
             }
         }
+
         // fill in the final row
-        $left = 7 - ( $i%7 );
-        if ( $left < 7) {
-            for ( $j=0; $j<$left; $j++ )    {
-              $c[] = '<td class="'.$emptyClass.'">&nbsp;</td>';
+        $left = 7 - ($i%7);
+
+        if ($left < 7) {
+            for ($j = 0; $j < $left; $j++) {
+                $c[] = '<td class="'.$emptyClass.'">&nbsp;</td>';
             }
+
             $c[] = "\n\t</tr>";
         }
+
         return '<tbody>' . join('',$c) . '</tbody>';
     }
 
@@ -1606,6 +1761,7 @@ function smd_cal_minilink($row, $day, $month, $year, $use_posted = false)
     $lang = '';
     $request = serverSet('REQUEST_URI');
     $redirect = serverSet('REDIRECT_URL');
+
     if (!empty($redirect) && ($request != $redirect) && is_callable('_l10n_set_browse_language')) {
         // MLP in da house so extract the language currently in use -- is there an MLP-native method for this?
         $reqparts = explode('/', $request);
@@ -1613,14 +1769,18 @@ function smd_cal_minilink($row, $day, $month, $year, $use_posted = false)
         $lang = join('', array_diff($redparts, $reqparts)) . '/';
     }
 
-    if( $permlink_mode == 'year_month_day_title' ) {
-        $linkdate = ($use_posted) ? date('Y/m/d', $row['uPosted']) : $year.'/'.str_pad($month,2,"0",STR_PAD_LEFT).'/'.str_pad($day,2,"0",STR_PAD_LEFT);
+    if ($permlink_mode == 'year_month_day_title') {
+        $linkdate = ($use_posted) ? date('Y/m/d', $row['uPosted']) : $year.'/'.str_pad($month, 2, "0", STR_PAD_LEFT).'/'.str_pad($day, 2, "0", STR_PAD_LEFT);
         $href = ' href="'.hu.$lang.$linkdate.'"';
     } else {
-        $linkdate = ($use_posted) ? date('Y-m-d', $row['uPosted']) : $year.'-'.str_pad($month,2,"0",STR_PAD_LEFT).'-'.str_pad($day,2,"0",STR_PAD_LEFT);
+        $linkdate = ($use_posted) ? date('Y-m-d', $row['uPosted']) : $year.'-'.str_pad($month, 2, "0", STR_PAD_LEFT).'-'.str_pad($day, 2, "0", STR_PAD_LEFT);
         $href = ' href="'.hu.$lang.'?date='.$linkdate;
-        if($row['Section']) { $href = $href.a.'s='.$row['Section']; }
+
+        if ($row['Section']) {
+            $href = $href.a.'s='.$row['Section'];
+        }
 //      if($category) { $href = $href.a.'c='.$category; }
+
         $href .= '"';
     }
 
@@ -1653,15 +1813,21 @@ function smd_if_cal($atts, $thing)
 
     if ($flag && $flag[0] != '') {
         $num += count($flag);
+
         foreach ($flag as $whatnot) {
-            if (empty($whatnot)) continue;
+            if (empty($whatnot)) {
+                continue;
+            }
+
             $ctr += (in_array($whatnot, $smd_cal_flag) || ($whatnot == 'SMD_ANY' && !empty($smd_cal_flag))) ? 1 : 0;
         }
     }
+
     if ($calid) {
         $num++;
         $ctr += ($smd_calinfo['id'] === $calid) ? 1 : 0;
     }
+
     foreach (array("iy" => "isoyear", "y" => "year", "m" => "month", "w" => "week", "d" => "day") as $idx => $test) {
         $tester = $$test;
         $compare = $smd_date[$idx];
@@ -1669,9 +1835,11 @@ function smd_if_cal($atts, $thing)
         if ($tester) {
             $num++;
             preg_match('/([!=<>]+)?([\d]+)/', $tester, $matches);
+
             if ($debug) {
                 dmp("TEST IF: ". $compare. (($matches[1]) ? $matches[1] : '=') . $matches[2] );
             }
+
             switch ($matches[1]) {
                 case "!":
                     $ctr += ($compare!=$matches[2]) ? 1 : 0;
@@ -1694,7 +1862,9 @@ function smd_if_cal($atts, $thing)
             }
         }
     }
+
     $result = (($ctr === $num && $logic == "and") || $ctr > 0 && $logic == "or") ? true : false;
+
     return parse(EvalElse($thing, $result));
 }
 
@@ -1702,6 +1872,7 @@ function smd_if_cal($atts, $thing)
 function smd_event_info($atts)
 {
     $atts['use'] = 'event';
+
     return smd_cal_info($atts);
 }
 
@@ -1716,7 +1887,7 @@ function smd_cal_info($atts)
         'join_prefix' => 'SMD_AUTO',
         'html'        => 0,
         'escape'      => 'html',
-        'use'         => 'cal', // 'cal' for calendar (uses $smd_calinfo) or 'event' for event lists (uses $smd_eventinfo). Not publically alterable
+        'use'         => 'cal', // 'cal' for calendar (uses $smd_calinfo) or 'event' for event lists (uses $smd_eventinfo). Not publicly alterable
         'debug'       => 0,
     ), $atts));
 
@@ -1728,6 +1899,7 @@ function smd_cal_info($atts)
         echo '++ Event name ++';
         dmp($thisarticle['title']);
     }
+
     if ($debug && $cal_global) {
         echo '++ Available '.$use.' info ++';
         dmp($cal_global);
@@ -1759,33 +1931,42 @@ function smd_cal_info($atts)
         'category' => array(2, 'c'),
         'realname' => array(2, 'author'),
     );
+
     $join = ($html) ? a : $join; // html mode forces ampersand join
     $type = do_list($type);
     $ret = array();
+
     foreach ($type as $item) {
         $pts = do_list($item, ':');
         $item = $pts[0];
 
-        if (empty($item)) continue;
+        if (empty($item)) {
+            continue;
+        }
+
         // Default html id
         $hid = (isset($map[$item])) ? ((isset($map[$item][2])) ? $map[$item][2] : $map[$item][1]) : $item;
         // User-specified htmlid overrides it
         $hid = (count($pts) > 1 && !empty($pts[1])) ? $pts[1] : $hid;
+
         if ($item == "flag") {
             $ret[] = (($join_prefix=="SMD_AUTO") ? $join : '').join($join, $smd_cal_flag);
-        } else if ($item == "author" || $item == "realname") {
+        } elseif ($item == "author" || $item == "realname") {
             $currauthor = ($thisarticle == NULL) ? '' : author(array());
+
             if ($currauthor) {
                 $ret[] = (($html) ? $hid.'=' : '') . $currauthor;
             }
-        } else if ($item == "s") {
+        } elseif ($item == "s") {
             $sec = (!empty($pretext['s'])) ? $pretext['s'] : ((isset($cal_global['s']) && !empty($cal_global['s'])) ? $cal_global['s'] : '');
+
             if ($sec) {
                 $ret[] = (($html) ? $hid.'=' : '') . $sec;
             }
-        } else if (isset($map[$item])) {
+        } elseif (isset($map[$item])) {
             $typ = $map[$item][0];
             $idx = empty($map[$item][1]) ? $item : $map[$item][1];
+
             switch ($typ) {
                 case 0:
                     if ($smd_date[$idx]) {
@@ -1808,11 +1989,11 @@ function smd_cal_info($atts)
                     }
                     break;
             }
-        } else if (array_key_exists($item, $pretext)) {
+        } elseif (array_key_exists($item, $pretext)) {
             if ($pretext[$item]) {
                 $ret[] = (($html) ? $hid.'=' : '') . $pretext[$item];
             }
-        } else if (isset($cal_global[$item])) {
+        } elseif (isset($cal_global[$item])) {
             if (!empty($cal_global[$item])) {
                 $ret[] = (($html) ? $hid.'=' : '') . $cal_global[$item];
             }
@@ -1824,6 +2005,7 @@ function smd_cal_info($atts)
     }
 //    $ret = array_unique($ret);
     $out = (($join_prefix=="SMD_AUTO") ? (($html) ? '?' : '') : $join_prefix).join($join, $ret);
+
     return ($escape=='html') ? htmlspecialchars($out) : $out;
 }
 
@@ -1843,6 +2025,7 @@ function smd_cal_now($atts)
     $theDay = (gps('d') && is_numeric(gps('d'))) ? (int)gps('d') : safe_strftime('%d');
     $theMonth = (gps('m') && is_numeric(gps('m'))) ? (int)gps('m') : safe_strftime('%m');
     $theYear = (gps('y') && is_numeric(gps('y'))) ? (int)gps('y') : safe_strftime('%Y');
+
     if ($now) {
         $now = str_replace("?month", date('F', mktime(12,0,0,$theMonth,$theDay,$theYear)), $now);
         $now = str_replace("?year", $theYear, $now);
@@ -1857,6 +2040,7 @@ function smd_cal_now($atts)
     }
 
     $format = smd_cal_reformat_win($format, $now);
+
     return safe_strftime($format, $now, $gmt, $lang);
 }
 
@@ -1916,35 +2100,44 @@ function smd_article_event($atts, $thing = null)
     // Phase 1 filters
     $filtSQL = array();
     $subSQL = array();
+
     if ($category !== null) {
         $uncats = false;
         $allcats = do_list($category);
+
         if (($pos = array_search('SMD_UNCAT', $allcats)) !== false) {
             $uncats = true;
             unset($allcats[$pos]);
             $category = join(',', $allcats);
         }
+
         $tmp = doQuote(join("','", doSlash(do_list($category))));
         $filtSQL[] = ($uncats ? "(Category1 = '' AND Category2 = '')" : '') .
             ($uncats && $allcats ? " OR " : '') .
             ($allcats ? '( Category1 IN ('.$tmp.') OR Category2 IN ('.$tmp.') )' : '');
     }
-    if($section) {
+
+    if ($section) {
         $filtSQL[] = 'Section IN ('.doQuote(join("','", doSlash(do_list($section)))).')';
     }
-    if($realname) {
+
+    if ($realname) {
         $authors = safe_column('name', 'txp_users', 'RealName IN ('. doQuote(join("','", doArray(do_list($realname), 'urldecode'))) .')' );
         $author = join(',', $authors);
     }
-    if($author) {
+
+    if ($author) {
         $filtSQL[] = 'AuthorID IN ('.doQuote(join("','", doSlash(do_list($author)))).')';
     }
-    if($id) {
+
+    if ($id) {
         $filtSQL[] = 'ID IN ('.join(',', array_map('intval', do_list($id))).')';
     }
-    if($custom) {
+
+    if ($custom) {
         $custs = do_list($custom);
         $validOps = array('=', '!=', '>', '>=', '<', '<=', 'like', 'not', 'not like');
+
         foreach ($custs as $set) {
             if (strpos($set, $param_delim) !== false) {
                 $clauseOpts = do_list($set, $param_delim);
@@ -1978,6 +2171,7 @@ function smd_article_event($atts, $thing = null)
                 break;
         }
     }
+
     if ($subSQL) {
         $filtSQL[] = '('.join(' OR ', $subSQL).')';
     }
@@ -1985,18 +2179,20 @@ function smd_article_event($atts, $thing = null)
     $status = ($status) ? $status : 'live'; // in case status has been emptied
     $status = do_list($status);
     $stati = array();
+
     foreach ($status as $stat) {
         if (empty($stat)) {
             continue;
-        } else if (is_numeric($stat)) {
+        } elseif (is_numeric($stat)) {
             $stati[] = $stat;
         } else {
             $stati[] = getStatusNum($stat);
         }
     }
-    $filtSQL[] = 'Status IN ('.doQuote(join("','", $stati)).')';
 
+    $filtSQL[] = 'Status IN ('.doQuote(join("','", $stati)).')';
     $expired = ($expired) ? $expired : $prefs['publish_expired_articles'];
+
     if (!$expired) {
         $filtSQL[] = '(now() <= Expires OR Expires IS NULL)';
     }
@@ -2006,14 +2202,18 @@ function smd_article_event($atts, $thing = null)
     $sort = do_list($sort);
     $sortPrefix = "SORT_";
     $sortOrder = array();
+
     for ($idx = 0; $idx < count($sort); $idx++) {
         $sorties = explode(' ', $sort[$idx]);
+
         if (count($sorties) <= 1) {
             $sorties[1] = "asc";
         }
+
         $sorties[1] = $sortPrefix.(($sorties[1] == "desc") ? 'DESC' : 'ASC');
         $sortOrder[] = array("by" => $sorties[0], "dir" => $sorties[1]);
     }
+
     $filtSQL = join(' AND ', $filtSQL);
     $filtSQL .= ' ORDER BY '.join(',',doSlash($sort));
 
@@ -2024,11 +2224,13 @@ function smd_article_event($atts, $thing = null)
         echo "++ RECORD SET ++";
         dmp($evlist);
     }
+
     $all_evs = array();
     $ev_tally = array();
     $now = time() + tz_offset();
 
     $eventlimit = do_list($eventlimit);
+
     if (count($eventlimit) == 1) {
         $eventlimit[1] = $eventlimit[0];
     }
@@ -2052,6 +2254,7 @@ function smd_article_event($atts, $thing = null)
             $ev_expires = (($row['uExpires']==0) ? 0 : $row['uExpires']+tz_offset($row['uExpires']));
             trigger_error('Expiry cannot be before start date in "'.$row['Title'].'": ignored', E_USER_WARNING);
         }
+
         if ($debug > 1) {
             echo '++ EVENT START // END ++';
             dmp($row['Title']);
@@ -2075,23 +2278,29 @@ function smd_article_event($atts, $thing = null)
         // Generate a skip array for this event
         if ($skip) {
             $ignores = do_list($row[$skipfield]);
+
             foreach ($ignores as $val) {
                 $igrng = smd_expand_daterange($val, $ev_posted, $ev_expires);
+
                 foreach ($igrng as $theval) {
                     $ignore[] = date("d-M-Y", $theval); // Force each date to a known format
                 }
             }
         }
+
         // Append any omitted events
         if ($omit) {
             $omits = do_list($row[$omitfield]);
+
             foreach ($omits as $val) {
                 $omrng = smd_expand_daterange($val, $ev_posted, $ev_expires);
+
                 foreach ($omrng as $theval) {
                     $ignore[] = date("d-M-Y", $theval);
                 }
             }
         }
+
         if ($debug > 1 && $ignore) {
             echo '++ IGNORED DATES ++';
             dmp($ignore);
@@ -2120,16 +2329,18 @@ function smd_article_event($atts, $thing = null)
                     $chk = $allspanned && $multi && !$recur;
                     $spidth = $chk ? ceil($fdiff / (60*60*24)) : 1; // days between dates
                     $val = rtrim($val, '+');
+
                     for ($jdx = 1; $jdx <= $spidth; $jdx++) {
                         $xtras[] = date("Y-m-d", safe_strtotime($val . (($jdx==1) ? '' : '+'.($jdx-1).' days')));
                     }
+
                     $spex = $chk ? 1 : 0;
                 }
             }
 
             $xtras = array_unique($xtras);
-
             $stampoff = (int)(3600*$ev_hr) + (int)(60*$ev_mn) + (int)$ev_sc;
+
             foreach ($xtras as $jdx => $val) {
                 $tm = strtotime($val);
                 $flags = array('extra');
@@ -2139,13 +2350,16 @@ function smd_article_event($atts, $thing = null)
                     $fakerow = $row;
                     $fakerow['Posted'] = date("Y-m-d H:i:s", $tm+$stampoff);
                     $fakerow['uPosted'] = $tm+$stampoff;
+
                     if ($diff > 0) {
                         $fakerow['Expires'] = date("Y-m-d H:i:s", $tm+$stampoff+$diff);
                         $fakerow['uExpires'] = $tm+$stampoff+$diff;
                     }
+
                     if ($spex) {
                         $flags[] = ($jdx==0) ? 'multifirst' : (($jdx==$spidth-1) ? 'multilast' : 'multi');
                     }
+
                     $all_evs[] = array('ev' => $fakerow, 'flags' => $flags);
                     $ev_tally[$fakerow['uPosted']] = (isset($ev_tally[$fakerow['uPosted']])) ? $ev_tally[$fakerow['uPosted']]+1 : 1;
                 }
@@ -2158,29 +2372,34 @@ function smd_article_event($atts, $thing = null)
             $monthly = false;
             $currmonth = $ev_month;
             $curryear = $ev_year;
+
             foreach ($freq as $interval) {
                 $fakerow = $row;
                 $cstamp = $ev_posted;
-                for($idx = 0; $idx < 99999; $idx++) {
+
+                for ($idx = 0; $idx < 99999; $idx++) {
                     $lstamp = $cstamp;
+
                     if ((isset($ev_tally[$row['uPosted']]) && ($ev_tally[$row['uPosted']] >= $eventlimit[0])) || ($to && $cstamp > safe_strtotime($to))) {
                         break;
                     }
+
                     $ival = str_replace("?month", date('F', mktime(0,0,0,$currmonth,1)), $interval);
                     $ival = str_replace("?year", $curryear, $ival);
 
                     if (strpos($ival, "last") === 0) {
                         $ival = date("l, F jS Y", strtotime( $ival, mktime(12, 0, 0, date("n", mktime(0,0,0,$currmonth,1,$curryear))+1, 1, $curryear) ));
                         $monthly = true;
-                    } else if (strpos($ival, "first") === 0) {
+                    } elseif (strpos($ival, "first") === 0) {
                         $ival = date("l, F jS Y", strtotime( $ival, mktime(12, 0, 0, (($currmonth>1) ? $currmonth-1 : 12), date("t", mktime(0,0,0,$currmonth-1,1,(($currmonth==1) ? $curryear-1: $curryear)) ), (($currmonth==1) ? $curryear-1: $curryear)) ));
                         $monthly = true;
-                    } else if (strpos($ival, "this") === 0) {
+                    } elseif (strpos($ival, "this") === 0) {
                         $monthly = true;
                     }
+
                     if (strpos($interval, "?month") || strpos($interval, "?year")) {
                         $monthly = true;
-                }
+                    }
 
                     if ($monthly) {
                         $cstamp = strtotime($ival);
@@ -2191,6 +2410,7 @@ function smd_article_event($atts, $thing = null)
                     // This kludge takes account of timestamps like "last Thursday" (of the month). The last 'whatever day' of
                     // a month can only be a maximum of 31 days before the last timestamp we saw, so check for that (+/- 10 mins)
                     $diffstamp = $cstamp - $lstamp;
+
                     if ($diffstamp < 0) {
                         if ($diffstamp > -(60*60*24*31)+600) {
                             $cstamp = false; // Some 'last weekday' of the previous month
@@ -2198,6 +2418,7 @@ function smd_article_event($atts, $thing = null)
                             break; // PHP_INT_MAX exceeded
                         }
                     }
+
                     if ($cstamp !== false) {
                         if ($debug > 1) {
                             dmp("INTERVAL: ". $cstamp . ' // ' .date('d-M-Y H:i:s', $cstamp));
@@ -2205,6 +2426,7 @@ function smd_article_event($atts, $thing = null)
 
                         if (($cstamp < $ev_expires || $ev_expires == '0') && ($cstamp != $ev_posted)) {
                             $show_me = smd_include_event($cstamp, $now, $ignore, $time, $from, $to, $month);
+
                             if ($show_me) {
                                 $flags[] = 'recur';
                                 $fakerow['Posted'] = date("Y-m-d H:i:s", $cstamp);
@@ -2217,27 +2439,31 @@ function smd_article_event($atts, $thing = null)
                             break;
                         }
                     }
+
                     // Increment the month/year ready for the next interval
                     if ($monthly) {
                         $curryear = ($currmonth==12) ? $curryear+1 : $curryear;
                         $currmonth = ($currmonth==12) ? 1 : $currmonth+1;
                     }
                 }
+
                 if ($debug>1) {
                     if (isset($ev_tally[$row['uPosted']])) {
                         dmp("TALLY: ". $ev_tally[$row['uPosted']]);
                     }
                 }
             }
-        } else if ($allspanned && date("Y-M-d", $ev_expires) != date("Y-M-d", $ev_posted)) {
+        } elseif ($allspanned && date("Y-M-d", $ev_expires) != date("Y-M-d", $ev_posted)) {
             $postdate = date("Y-M-d H:i:s", $ev_posted);
             $fake_diff = safe_strtotime(date("Y-M-d", $ev_expires) . " 23:59:59");
             $diff = ($ev_expires==0) ? 0 : $fake_diff - $ev_posted;
             $spidth = ceil($diff / (60*60*24)); // days between dates
+
             for ($jdx = 1; $jdx < $spidth; $jdx++) {
                 $flags = array();
                 $tm = safe_strtotime($postdate.'+'.$jdx.' days');
                 $show_me = smd_include_event($tm, $now, $ignore, $time, $from, $to, $month);
+
                 if ($show_me) {
                     $flags[] = ($jdx==$spidth-1) ? 'multilast' : 'multi';
                     $fakerow = $row;
@@ -2249,29 +2475,32 @@ function smd_article_event($atts, $thing = null)
         }
     }
 
-    if ($debug>2) {
+    if ($debug > 2) {
         echo "++ PRE-SORTED ++";
         dmp($all_evs);
     }
 
     // Make up an array_multisort arg list and execute it
-    foreach($all_evs as $key => $entry) {
+    foreach ($all_evs as $key => $entry) {
         $row = $entry['ev'];
+
         foreach ($row as $identifier => $item) {
             $varname = "col_".$identifier;
             ${$varname}[$key] = $item;
         }
     }
-    if(count($all_evs) > 0) {
+
+    if (count($all_evs) > 0) {
         for ($idx = 0; $idx < count($sortOrder); $idx++) {
             $sortargs[] = '$col_'.$sortOrder[$idx]['by'];
             $sortargs[] = $sortOrder[$idx]['dir'];
         }
+
         $sortit = 'array_multisort('.implode(", ",$sortargs).', $all_evs);';
         eval($sortit);
     }
 
-    if ($debug>2) {
+    if ($debug > 2) {
         echo "++ POST-SORTED ++";
         dmp($all_evs);
     }
@@ -2283,6 +2512,7 @@ function smd_article_event($atts, $thing = null)
         $numPages = ceil($total/$pageby);
         $pg = (!$pretext['pg']) ? 1 : $pretext['pg'];
         $pgoffset = $offset + (($pg - 1) * $pageby);
+
         // send paging info to txp:newer and txp:older
         $pageout['pg'] = $pg;
         $pageout['numPages'] = $numPages;
@@ -2291,10 +2521,13 @@ function smd_article_event($atts, $thing = null)
         $pageout['grand_total'] = $grand_total;
         $pageout['total'] = $total;
 
-        if (empty($thispage))
+        if (empty($thispage)) {
             $thispage = $pageout;
-        if ($pgonly)
+        }
+
+        if ($pgonly) {
             return;
+        }
     } else {
         $pgoffset = $offset;
     }
@@ -2304,6 +2537,7 @@ function smd_article_event($atts, $thing = null)
     $ctr = 0;
     article_push();
     $lastposted = 0;
+
     foreach ($all_evs as $idx => $entry) {
         $smd_cal_flag = array();
         $smd_date = array();
@@ -2334,6 +2568,7 @@ function smd_article_event($atts, $thing = null)
             $smd_date['d'] = (int)strftime('%d', $row['uPosted']);
             $smd_date['w'] = strftime(smd_cal_reformat_win('%V', $row['uPosted']), $row['uPosted']);
             $smd_date['iy'] = strftime(smd_cal_reformat_win('%G', $row['uPosted']), $row['uPosted']);
+
             if ($row['uExpires'] == 0) {
                 $smd_date['expy'] = $smd_date['expm'] = $smd_date['expd'] = $smd_date['expw'] = $smd_date['expiy'] = '';
             } else {
@@ -2343,6 +2578,7 @@ function smd_article_event($atts, $thing = null)
                 $smd_date['expw'] = strftime(smd_cal_reformat_win('%V', $row['uExpires']), $row['uExpires']);
                 $smd_date['expiy'] = strftime(smd_cal_reformat_win('%G', $row['uExpires']), $row['uExpires']);
             }
+
             populateArticleData($row);
             $thisarticle['is_first'] = ($thisposted != $lastposted);
             $thisarticle['is_last'] = ($thisposted != $nextposted);
@@ -2351,7 +2587,9 @@ function smd_article_event($atts, $thing = null)
             $ctr++;
         }
     }
+
     article_pop();
+
     return doWrap($out, $wraptag, $break, $class);
 }
 
@@ -2371,7 +2609,8 @@ function smd_event_duration($atts)
     preg_match_all('/\%([dejbBmhgGyY])/', $format, $matches);
 
     $indexes = array('day' => '', 'month' => '', 'year' => '');
-    foreach($matches[1] as $idx => $token) {
+
+    foreach ($matches[1] as $idx => $token) {
         switch ($token) {
             case 'd':
             case 'e':
@@ -2422,6 +2661,7 @@ function smd_event_duration($atts)
                 $s_format = $e_format = $format;
                 $has_year = true;
             }
+
             $s_format .= $separator;
         }
 
@@ -2441,7 +2681,9 @@ function smd_event_duration($atts)
 // All other shortcut algorithms failed edge cases
 function smd_cal_iso_week($format = '%V', $time = null)
 {
-    if (!$time) $time = time();
+    if (!$time) {
+        $time = time();
+    }
 
     $yr = strftime("%Y", $time);
     $leap = ( ( ($yr % 4 == 0) && ($yr % 100 != 0) ) || $yr % 400 == 0 );
@@ -2461,6 +2703,7 @@ function smd_cal_iso_week($format = '%V', $time = null)
     // Find if $time falls in iso_year Y-1, iso_week 52 or 53
     if (($day_of_year <= (8 - $jan1weekday)) && $jan1weekday > 4) {
         $iso_year = $yr - 1;
+
         if ($jan1weekday == 5 || ($jan1weekday == 6 && $leap_prev)) {
             $iso_week = 53;
         } else {
@@ -2473,7 +2716,8 @@ function smd_cal_iso_week($format = '%V', $time = null)
     // Find if $time falls in iso_year Y+1, iso_week 1
     if ($iso_year == $yr) {
         $idx = ($leap) ? 366 : 365;
-        if ( ($idx - $day_of_year) < (4 - $weekday) ) {
+
+        if (($idx - $day_of_year) < (4 - $weekday)) {
             $iso_year = $yr + 1;
             $iso_week = 1;
         }
@@ -2483,6 +2727,7 @@ function smd_cal_iso_week($format = '%V', $time = null)
     if ($iso_year == $yr) {
         $jdx = $day_of_year + (7 - $weekday) + ($jan1weekday - 1);
         $iso_week = $jdx / 7;
+
         if ($jan1weekday > 4) {
             $iso_week--;
         }
@@ -2494,6 +2739,7 @@ function smd_cal_iso_week($format = '%V', $time = null)
         '%G' => $iso_year,
         '%g' => substr($iso_year, 2),
     );
+
     return strtr($format, $reps);
 }
 
@@ -2505,7 +2751,9 @@ function smd_cal_reformat_win($format, $ts = null)
         return $format;
     }
 
-    if (!$ts) $ts = time();
+    if (!$ts) {
+        $ts = time();
+    }
 
     $mapping = array(
         '%C' => sprintf("%02d", date("Y", $ts) / 100),
@@ -2526,6 +2774,7 @@ function smd_cal_reformat_win($format, $ts = null)
         '%u' => ($w = date("w", $ts)) ? $w : 7,
         '%V' => smd_cal_iso_week('%V', $ts),
     );
+
     $format = str_replace(
         array_keys($mapping),
         array_values($mapping),
@@ -2543,6 +2792,7 @@ function smd_cal_in_array($needle, $haystack)
             return true;
         }
     }
+
     return false;
 }
 
@@ -2553,8 +2803,9 @@ function smd_include_event($ts, $now, $ign, $time, $from, $to, $month)
     $show[] = !in_array(date("d-M-Y", $ts), $ign);
     $time = do_list($time);
     $showor = false;
-    foreach($time as $tm) {
-        switch($tm) {
+
+    foreach ($time as $tm) {
+        switch ($tm) {
             case "any":
                 $showor = true;
                 break;
@@ -2569,10 +2820,20 @@ function smd_include_event($ts, $now, $ign, $time, $from, $to, $month)
                 break;
         }
     }
+
     $show[] = $showor;
-    if ($from) { $show[] = ($ts >= safe_strtotime($from)) ? true : false; }
-    if ($to) { $show[] = ($ts <= safe_strtotime($to)) ? true : false; }
-    if ($month) { $show[] = (date("Y-m", $ts) == $month) ? true : false; }
+
+    if ($from) {
+        $show[] = ($ts >= safe_strtotime($from)) ? true : false;
+    }
+
+    if ($to) {
+        $show[] = ($ts <= safe_strtotime($to)) ? true : false;
+    }
+
+    if ($month) {
+        $show[] = (date("Y-m", $ts) == $month) ? true : false;
+    }
 
     return (!in_array(0, $show)) ? true : false;
 }
@@ -2588,15 +2849,18 @@ function smd_expand_daterange($range, $start = '', $end = '', $fmt = '%s')
         // Range expansion
         $diff = safe_strtotime($rng[1]) - safe_strtotime($rng[0]);
         $diffdays = ceil($diff / (60*60*24)); // days between dates
+
         for ($jdx = 0; $jdx <= $diffdays; $jdx++) {
             $out[] = safe_strftime($fmt, safe_strtotime($rng[0] . (($jdx==0) ? '' : '+'.$jdx.' days')));
         }
-    } else if ($start && $end && strpos($range, '{') === 0 && strpos($range, '}') === strlen($range)-1) {
+    } elseif ($start && $end && strpos($range, '{') === 0 && strpos($range, '}') === strlen($range)-1) {
         // Day of week expansion
         $days = do_list(trim($range,'{}'), ':');
         $diffdays = ceil(($end-$start) / (60*60*24));
+
         for ($jdx = 0; $jdx <= $diffdays; $jdx++) {
             $tm = $start + ($jdx*60*60*24);
+
             if (in_array(date('D', $tm), $days)) {
                 $out[] = safe_strftime($fmt, $tm);
             }
@@ -2605,6 +2869,7 @@ function smd_expand_daterange($range, $start = '', $end = '', $fmt = '%s')
         // Single date
         $out[] = safe_strftime($fmt, safe_strtotime($rng[0]));
     }
+
     return $out;
 }
 # --- END PLUGIN CODE ---
